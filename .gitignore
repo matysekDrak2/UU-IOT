@@ -1,0 +1,83 @@
+# ───────── ОС ─────────
+.DS_Store
+Thumbs.db
+
+# ───────── editors ─────────
+# JetBrains / IntelliJ / WebStorm
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+.history/
+*.code-workspace
+
+# ───────── Node / React ─────────
+node_modules/
+bower_components/
+
+# Assemblies and bundles
+dist/
+build/
+out/
+.tmp/
+.temp/
+.cache/
+.parcel-cache/
+.npm/
+.yarn/
+.pnp.*
+.pnp/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Logs и pid
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pid
+*.seed
+*.pid.lock
+
+# Emulators and local services
+.firebase/
+.vercel/
+.netlify/
+.now/
+.surge/
+.aws/
+serverless/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Tools/linters/caches
+.eslintcache
+.stylelintcache
+.turbo/
+.next/
+.svelte-kit/
+.storybook-out/
+storybook-static/
+
+# Source maps
+*.map
+
+# Snap tests
+*.snap
+
+# ───────── Media and other large artifacts ─────────
+*.zip
+*.tar
+*.tgz
+
+# ───────── Other private files ─────────
+local/
+secret/
