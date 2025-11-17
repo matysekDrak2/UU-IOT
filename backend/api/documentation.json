@@ -1,0 +1,154 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Title",
+    "description": "Title",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://localhost:8080/api/V1"
+    }
+  ],
+  "paths": {
+    "/node": {
+      "put": {
+        "description": "Save Data",
+        "responses": {
+          "200": {
+            "description": "Date saved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "": ""
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "UUIDv4"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "sha512"
+          }
+        },
+        "required": ["id", "username", "email", "password"]
+      },
+      "Node": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "UUIDv4"
+          },
+          "userId": {
+            "type": "string",
+            "format": "UUIDv4",
+            "description": "Reference to the User that owns this node"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 3,
+            "default": "My Node"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "unknown"],
+            "default": "unknown"
+          },
+          "dataArchiving": {
+            "type": "duration",
+            "description": "Duration in ISO 8601 format",
+            "default": "P14D"
+          }
+        },
+        "required": ["id", "userId", "status"]
+      },
+      "Pot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "UUIDv4"
+          },
+          "nodeId": {
+            "type": "string",
+            "format": "UUIDv4",
+            "description": "Reference to the Node that owns this pot"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 3,
+            "default": "My Pot"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "unknown"],
+            "default": "unknown"
+          }
+        },
+        "required": ["id", "nodeId", "status"]
+      },
+      "Measurement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "UUIDv4"
+          },
+          "potId": {
+            "type": "string",
+            "format": "UUIDv4",
+            "description": "Reference to the Pot that owns this measurement"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "value": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "type": {
+            "type": "string",
+            "default": "moisture"
+          }
+        },
+        "required": ["id", "potId", "timestamp", "value", "type"]
+      }
+    }
+  }
+}
