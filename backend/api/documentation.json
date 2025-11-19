@@ -11,17 +11,835 @@
     }
   ],
   "paths": {
-    "/node": {
+    "/user": {
       "put": {
-        "description": "Save Data",
+        "description": "Create User",
+        "summary": "Create a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/User"
+              },
+              "example": {
+                "username": "john_doe",
+                "email": "john_doe+ourApp@gmail.com",
+                "password": "86bbad77affad64e370e576118820927a2848c7b2095ac039a770e425e15fba9c0bf9749a5281d11ecedaa52c15a2d9c050986e21898c6e691bbd64fd26dba73"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Date saved successfully",
+            "description": "User created successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "": ""
+                  "$ref": "#/components/schemas/User"
+                },
+                "example": {
+                  "id": "123e4567-e89b-12d3-a456-426614174000",
+                  "username": "john_doe",
+                  "email": "john_doe+ourApp@gmail.com"
                 }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - user creation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "CreationFailed",
+                  "message": "The creation process failed due to invalid input."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - user creation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "CreationFailed",
+                  "message": "User creation process failed. Please try again later."
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Login User",
+        "summary": "Login user with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "sha512"
+                  }
+                }
+              },
+              "example": {
+                "email": "john_doe@gmail.com",
+                "password": "86bbad77affad64e370e576118820927a2848c7b2095ac039a770e425e15fba9c0bf9749a5281d11ecedaa52c15a2d9c050986e21898c6e691bbd64fd26dba73"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid login input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "InvalidInput",
+                  "message": "Email or password format is invalid."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "AuthenticationFailed",
+                  "message": "Email or password is incorrect."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - login failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "ServerError",
+                  "message": "An internal error occurred. Please try again later."
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "description": "Get User Info",
+        "summary": "Retrieve user information using token",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "application/json": {
+                    "username": "string",
+                    "email": "string"
+                  }
+                },
+                "example": {
+                  "username": "john_doe",
+                  "email": "john_doe+ourApp@gmail.com"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Unauthorized",
+                  "message": "Invalid or missing authentication token."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to retrieve user info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "ServerError",
+                  "message": "An internal error occurred. Please try again later."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/node": {
+      "get": {
+        "description": "Get all nodes for authenticated user",
+        "summary": "List nodes owned by the authenticated user",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Node"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "6f1e2b8a-1e2d-4c3b-8c9b-a3b14f0c1234",
+                    "userId": "123e4567-e89b-12d3-a456-426614174000",
+                    "name": "Living Room Node",
+                    "note": "Main gateway",
+                    "status": "active",
+                    "dataArchiving": "P14D"
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to retrieve nodes",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Register a new node for the authenticated user",
+        "summary": "Create node",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/NodeCreate" },
+              "example": {
+                "name": "Garden Node",
+                "note": "Backyard sensors",
+                "dataArchiving": "P30D",
+                "status": "active"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Node created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Node" },
+                "example": {
+                  "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "userId": "123e4567-e89b-12d3-a456-426614174000",
+                  "name": "Garden Node",
+                  "note": "Backyard sensors",
+                  "status": "active",
+                  "dataArchiving": "P30D"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "InvalidInput", "message": "Provided node data is invalid." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to create node",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/node/{nodeId}": {
+      "parameters": [
+        {
+          "name": "nodeId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "format": "UUIDv4" },
+          "description": "Identifier of the node"
+        }
+      ],
+      "patch": {
+        "description": "Update node fields (name, note, dataArchiving)",
+        "summary": "Partial update of a node",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/NodeUpdate" },
+              "example": {
+                "name": "Updated Node Name",
+                "note": "Updated note",
+                "dataArchiving": "P7D"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Node updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Node" },
+                "example": {
+                  "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "userId": "123e4567-e89b-12d3-a456-426614174000",
+                  "name": "Updated Node Name",
+                  "note": "Updated note",
+                  "status": "active",
+                  "dataArchiving": "P7D"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid update payload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "InvalidInput", "message": "Provided update data is invalid." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - node does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Node not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to update node",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "Delete a node owned by the authenticated user",
+        "summary": "Delete node",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Node deleted successfully - no content"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - node does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Node not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to delete node",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "description": "Get details of a specific node owned by the authenticated user",
+        "summary": "Retrieve node details",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Node details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Node" },
+                "example": {
+                  "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "userId": "123e4567-e89b-12d3-a456-426614174000",
+                  "name": "Garden Node",
+                  "note": "Backyard sensors",
+                  "status": "active",
+                  "dataArchiving": "P30D"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - node does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Node not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to retrieve node details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/node/{nodeId}/pot": {
+      "parameters": [
+        {
+          "name": "nodeId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "format": "UUIDv4" },
+          "description": "Identifier of the node"
+        }
+      ],
+      "get": {
+        "description": "Get all pots for a specific node owned by the authenticated user",
+        "summary": "List pots under a node",
+        "security": [
+          { "ApiKeyAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of pots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Pot" }
+                },
+                "example": [
+                  {
+                    "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                    "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                    "name": "Front Porch Pot",
+                    "note": "Ivy pot",
+                    "status": "active"
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - node does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Node not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to retrieve pots",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pot/{potId}": {
+      "parameters": [
+        {
+          "name": "potId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "format": "UUIDv4" },
+          "description": "Identifier of the pot"
+        }
+      ],
+      "get": {
+        "description": "Get a specific pot owned by the authenticated user",
+        "summary": "Retrieve pot details",
+        "security": [
+          { "ApiKeyAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pot retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Pot" },
+                "example": {
+                  "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "name": "Front Porch Pot",
+                  "note": "Ivy pot",
+                  "status": "active"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - pot does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Pot not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to retrieve pot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "description": "Update pot fields (name, note)",
+        "summary": "Partial update of a pot",
+        "security": [
+          { "ApiKeyAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PotUpdate" },
+              "example": { "name": "Updated Pot Name", "note": "Updated note" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pot updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Pot" },
+                "example": {
+                  "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "name": "Updated Pot Name",
+                  "note": "Updated note",
+                  "status": "active"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid update payload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "InvalidInput", "message": "Provided update data is invalid." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - pot does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Pot not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to update pot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "Delete a pot owned by the authenticated user",
+        "summary": "Delete pot",
+        "security": [
+          { "ApiKeyAuth": [] }
+        ],
+        "responses": {
+          "204": {
+            "description": "Pot deleted successfully - no content"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - pot does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Pot not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to delete pot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pot/{potId}/measurement": {
+      "parameters": [
+        {
+          "name": "potId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "format": "UUIDv4" },
+          "description": "Identifier of the pot"
+        },
+        {
+          "name": "timeStart",
+          "in": "query",
+          "required": false,
+          "schema": { "type": "string", "format": "date-time" },
+          "description": "Start of time interval (ISO 8601)"
+        },
+        {
+          "name": "timeEnd",
+          "in": "query",
+          "required": false,
+          "schema": { "type": "string", "format": "date-time" },
+          "description": "End of time interval (ISO 8601)"
+        }
+      ],
+      "get": {
+        "description": "Get measurements for a specific pot filtered by optional time range",
+        "summary": "List measurements for pot",
+        "security": [
+          { "ApiKeyAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of measurements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Measurement" }
+                },
+                "example": [
+                  {
+                    "id": "a1b2c3d4-5e6f-7a8b-9c0d-ef1234567890",
+                    "potId": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                    "timestamp": "2025-01-01T12:00:00Z",
+                    "value": 45.6,
+                    "type": "moisture"
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid time range",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "InvalidInput", "message": "timeStart/timeEnd format invalid or timeStart > timeEnd." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - pot does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Pot not found." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to retrieve measurements",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
               }
             }
           }
@@ -36,7 +854,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4"
+            "format": "UUIDv4",
+            "readOnly": true
           },
           "username": {
             "type": "string",
@@ -48,22 +867,53 @@
           },
           "password": {
             "type": "string",
-            "format": "sha512"
+            "format": "sha512",
+            "writeOnly": true
           }
         },
-        "required": ["id", "username", "email", "password"]
+        "required": ["id", "username", "email", "password"],
+        "example": {
+          "id": "123e4567-e89b-12d3-a456-426614174000",
+          "username": "john_doe",
+          "email": "john_doe+ourApp@gmail.com",
+          "password": "86bbad77affad64e370e576118820927a2848c7b2095ac039a770e425e15fba9c0bf9749a5281d11ecedaa52c15a2d9c050986e21898c6e691bbd64fd26dba73"
+        },
+        "additionalProperties": false
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "UUIDv4",
+            "description": "Reference to the User that owns this token",
+            "readOnly": true
+          },
+          "token": {
+            "type": "string",
+            "description": "SHA512"
+          },
+          "expiration": {
+            "type": "Timestamp",
+            "description": "Timestamp when the token expires",
+            "readOnly": true
+          }
+        },
+        "required": ["userId", "token", "expiration"]
       },
       "Node": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4"
+            "format": "UUIDv4",
+            "readOnly": true
           },
           "userId": {
             "type": "string",
             "format": "UUIDv4",
-            "description": "Reference to the User that owns this node"
+            "description": "Reference to the User that owns this node",
+            "readOnly": true
           },
           "name": {
             "type": "string",
@@ -94,12 +944,14 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4"
+            "format": "UUIDv4",
+            "readOnly": true
           },
           "nodeId": {
             "type": "string",
             "format": "UUIDv4",
-            "description": "Reference to the Node that owns this pot"
+            "description": "Reference to the Node that owns this pot",
+            "readOnly": true
           },
           "name": {
             "type": "string",
@@ -125,12 +977,14 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4"
+            "format": "UUIDv4",
+            "readOnly": true
           },
           "potId": {
             "type": "string",
             "format": "UUIDv4",
-            "description": "Reference to the Pot that owns this measurement"
+            "description": "Reference to the Pot that owns this measurement",
+            "readOnly": true
           },
           "timestamp": {
             "type": "string",
@@ -148,6 +1002,60 @@
           }
         },
         "required": ["id", "potId", "timestamp", "value", "type"]
+      },
+
+
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Short error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message"
+          }
+        },
+        "required": ["error", "message"],
+        "example": {
+          "error": "CreationFailed",
+          "message": "User creation process failed. Check input and try again."
+        }
+      },
+      "NodeCreate": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "maxLength": 50, "minLength": 3 },
+          "note": { "type": "string", "maxLength": 200, "default": "" },
+          "status": { "type": "string", "enum": ["active", "inactive", "unknown"], "default": "unknown" },
+          "dataArchiving": { "type": "string", "description": "Duration in ISO 8601 format", "default": "P14D" }
+        },
+        "required": ["name"]
+      },
+      "NodeUpdate": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "maxLength": 50, "minLength": 3 },
+          "note": { "type": "string", "maxLength": 200 },
+          "dataArchiving": { "type": "string", "description": "Duration in ISO 8601 format" }
+        },
+        "additionalProperties": false
+      },
+      "PotUpdate": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "maxLength": 50, "minLength": 3 },
+          "note": { "type": "string", "maxLength": 200 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization"
       }
     }
   }
