@@ -10,6 +10,17 @@
       "url": "https://localhost:8080/api/V1"
     }
   ],
+  "tags": [
+    {
+      "name": "User",
+      "description": "Operations performed by user"
+    },
+    {
+      "name": "Node",
+      "description": "Operations performed by nodes"
+    }
+  ],
+
   "paths": {
     "/user": {
       "put": {
@@ -74,7 +85,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       },
       "post": {
         "description": "Login User",
@@ -156,7 +168,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       },
       "get": {
         "description": "Get User Info",
@@ -212,10 +225,32 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       }
     },
     "/node": {
+      "put": {
+        "description": "Endpoint for node creation - Not intended for user Access",
+        "summary": "Node creation",
+        "responses": {
+          "200": {
+            "description": "Node created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeToken"
+                },
+                "example": {
+                  "nodeId": "6f1e2b8a-1e2d-4c3b-8c9b-a3b14f0c1234",
+                  "token": "b1946ac92492d2347c6235b4d2611184f3a9f6f1c4e5b2a76f2e4d5a8b7c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7081"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Node"]
+      },
       "get": {
         "description": "Get all nodes for authenticated user",
         "summary": "List nodes owned by the authenticated user",
@@ -266,11 +301,12 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       },
       "post": {
         "description": "Register a new node for the authenticated user",
-        "summary": "Create node",
+        "summary": "Register node",
         "security": [
           {
             "ApiKeyAuth": []
@@ -334,7 +370,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       }
     },
     "/node/{nodeId}": {
@@ -421,7 +458,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       },
       "delete": {
         "description": "Delete a node owned by the authenticated user",
@@ -462,7 +500,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       },
       "get": {
         "description": "Get details of a specific node owned by the authenticated user",
@@ -516,7 +555,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       }
     },
     "/node/{nodeId}/pot": {
@@ -583,7 +623,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       }
     },
     "/pot/{potId}": {
@@ -645,7 +686,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       },
       "patch": {
         "description": "Update pot fields (name, note)",
@@ -714,7 +756,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       },
       "delete": {
         "description": "Delete a pot owned by the authenticated user",
@@ -753,7 +796,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       }
     },
     "/pot/{potId}/measurement": {
@@ -780,6 +824,88 @@
           "description": "End of time interval (ISO 8601)"
         }
       ],
+      "put": {
+        "description": "Add a new measurement to a specific pot",
+        "summary": "Create measurement for pot",
+        "security": [
+          { "ApiKeyAuthNode": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Measurement" },
+              "example": {
+                "timestamp": "2025-01-01T12:00:00Z",
+                "value": 45.6,
+                "type": "moisture"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Measurement created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Measurement"
+                },
+                "example": {
+                  "id": "a1b2c3d4-5e6f-7a8b-9c0d-ef1234567890",
+                  "potId": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                  "timestamp": "2025-01-01T12:00:00Z",
+                  "value": 45.6,
+                  "type": "moisture"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid measurement data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "InvalidInput",
+                  "message": "Provided measurement data is invalid."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Unauthorized",
+                  "message": "Invalid or missing authentication token."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - pot does not exist or not owned by a user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Pot not found."
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Node"]
+      },
       "get": {
         "description": "Get measurements for a specific pot filtered by optional time range",
         "summary": "List measurements for pot",
@@ -843,7 +969,8 @@
               }
             }
           }
-        }
+        },
+        "tags": ["User"]
       }
     }
   },
@@ -938,6 +1065,22 @@
           }
         },
         "required": ["id", "userId", "status"]
+      },
+      "NodeToken": {
+        "type": "object",
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "format": "UUIDv4",
+            "description": "Reference to the Node that owns this token",
+            "readOnly": true
+          },
+          "token": {
+            "type": "string",
+            "description": "SHA512"
+          }
+        },
+        "required": ["nodeId", "token"]
       },
       "Pot": {
         "type": "object",
@@ -1056,6 +1199,12 @@
         "type": "apiKey",
         "in": "header",
         "name": "Authorization"
+      },
+      "ApiKeyAuthNode": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Device token in header: `Bearer <node-token>` (node-scoped, write-capable)."
       }
     }
   }
