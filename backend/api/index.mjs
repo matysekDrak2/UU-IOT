@@ -6,10 +6,120 @@
 import express from 'express';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 
 const app = express();
 app.use(express.json());
+
+// Add this middleware so requests to /api/V1/... are routed to the existing handlers.
+// It strips the leading '/api/V1' from req.url so current app.<method> routes continue to work.
+app.use((req, res, next) => {
+  const prefix = '/api/V1';
+  if (req.path.startsWith(prefix)) {
+    // rewrite url so downstream route matching sees the path without the prefix
+    req.url = req.url.slice(prefix.length) || '/';
+  }
+  next();
+});
+
+/* --- Ajv validator setup (new) --- */
+const ajv = new Ajv({ allErrors: true, strict: false });
+addFormats(ajv);
+
+function makeValidator(schema) {
+  return ajv.compile(schema);
+}
+
+function validateSchema(schema) {
+  const validator = makeValidator(schema);
+  return (req, res, next) => {
+    const valid = validator(req.body);
+    if (valid) return next();
+    const errors = (validator.errors || []).map(e => ({
+      path: e.instancePath || e.schemaPath,
+      message: e.message
+    }));
+    return res.status(400).json({ error: 'InvalidInput', message: 'Request body validation failed', details: errors });
+  };
+}
+
+/* --- Schemas (new) --- */
+const userCreateSchema = {
+  type: 'object',
+  properties: {
+    username: { type: 'string', minLength: 1, maxLength: 30 },
+    email: { type: 'string', format: 'email' },
+    password: { type: 'string', minLength: 1 } // accept plain or hash; enforce non-empty
+  },
+  required: ['username', 'email', 'password'],
+  additionalProperties: false
+};
+
+const userLoginSchema = {
+  type: 'object',
+  properties: {
+    email: { type: 'string', format: 'email' },
+    password: { type: 'string', minLength: 1 }
+  },
+  required: ['email', 'password'],
+  additionalProperties: false
+};
+
+const nodeCreateSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 50 },
+    note: { type: 'string' },
+    dataArchiving: { type: 'string' },
+    status: { type: 'string' }
+  },
+  required: ['name'],
+  additionalProperties: false
+};
+
+const nodePatchSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 50 },
+    note: { type: 'string' },
+    dataArchiving: { type: 'string' }
+  },
+  required: [],
+  additionalProperties: false
+};
+
+const potCreateSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 50 },
+    note: { type: 'string' },
+    status: { type: 'string' }
+  },
+  required: ['name'],
+  additionalProperties: false
+};
+
+const potPatchSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 50 },
+    note: { type: 'string' }
+  },
+  required: [],
+  additionalProperties: false
+};
+
+const measurementSchema = {
+  type: 'object',
+  properties: {
+    timestamp: { type: 'string' },
+    value: { type: 'number', minimum: 0, maximum: 100 },
+    type: { type: 'string' }
+  },
+  required: ['timestamp', 'value', 'type'],
+  additionalProperties: false
+};
 
 /* --- In-memory "DB" --- */
 const users = new Map(); // userId -> { id, username, email, passwordHash }
@@ -62,7 +172,7 @@ function requireNodeAuth(req, res, next) {
 
 /* --- User endpoints --- */
 // PUT /user  - create user
-app.put('/user', (req, res) => {
+app.put('/user', validateSchema(userCreateSchema), (req, res) => {
     const { username, email, password } = req.body || {};
     if (!username || !email || !password) {
         return res.status(400).json({ error: 'InvalidInput', message: 'username, email and password required' });
@@ -79,7 +189,7 @@ app.put('/user', (req, res) => {
 });
 
 // POST /user - login, return raw token (user token)
-app.post('/user', (req, res) => {
+app.post('/user', validateSchema(userLoginSchema), (req, res) => {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'InvalidInput', message: 'email and password required' });
     const user = Array.from(users.values()).find((u) => u.email === email);
@@ -119,7 +229,7 @@ app.get('/node', requireUserAuth, (req, res) => {
 });
 
 // POST /node - register node for authenticated user
-app.post('/node', requireUserAuth, (req, res) => {
+app.post('/node', requireUserAuth, validateSchema(nodeCreateSchema), (req, res) => {
     const { name, note, dataArchiving, status } = req.body || {};
     if (!name) return res.status(400).json({ error: 'InvalidInput', message: 'name required' });
     const id = uuidv4();
@@ -146,7 +256,7 @@ app.get('/node/:nodeId', requireUserAuth, (req, res) => {
     return res.status(200).json(node);
 });
 
-app.patch('/node/:nodeId', requireUserAuth, (req, res) => {
+app.patch('/node/:nodeId', requireUserAuth, validateSchema(nodePatchSchema), (req, res) => {
     const node = nodes.get(req.params.nodeId);
     if (!node || node.userId !== req.userId) return res.status(404).json({ error: 'NotFound', message: 'Node not found.' });
     const { name, note, dataArchiving } = req.body || {};
@@ -179,14 +289,14 @@ app.get('/node/:nodeId/pot', requireUserAuth, (req, res) => {
 // GET /pot/:potId
 app.get('/pot/:potId', requireUserAuth, (req, res) => {
     const p = pots.get(req.params.potId);
-    if (!p) return res.status(404).json({ error: 'NotFound', message: 'Pot not found.' });
+    if (!p) return res.status(404).json({ error: 'NotFound', message: 'Pot not found' });
     const node = nodes.get(p.nodeId);
     if (!node || node.userId !== req.userId) return res.status(404).json({ error: 'NotFound', message: 'Pot not found.' });
     return res.status(200).json(p);
 });
 
 // PATCH /pot/:potId
-app.patch('/pot/:potId', requireUserAuth, (req, res) => {
+app.patch('/pot/:potId', requireUserAuth, validateSchema(potPatchSchema), (req, res) => {
     const p = pots.get(req.params.potId);
     if (!p) return res.status(404).json({ error: 'NotFound', message: 'Pot not found.' });
     const node = nodes.get(p.nodeId);
@@ -210,7 +320,7 @@ app.delete('/pot/:potId', requireUserAuth, (req, res) => {
 
 /* --- Measurement endpoints --- */
 // PUT /pot/:potId/measurement - create measurement (device authenticates with node token)
-app.put('/pot/:potId/measurement', requireNodeAuth, (req, res) => {
+app.put('/pot/:potId/measurement', requireNodeAuth, validateSchema(measurementSchema), (req, res) => {
     const potId = req.params.potId;
     const pot = pots.get(potId);
     if (!pot) return res.status(404).json({ error: 'NotFound', message: 'Pot not found.' });
@@ -240,7 +350,7 @@ app.get('/pot/:potId/measurement', requireUserAuth, (req, res) => {
 });
 
 /* --- Utility endpoints for demo: create pot under node (user) --- */
-app.post('/node/:nodeId/pot', requireUserAuth, (req, res) => {
+app.post('/node/:nodeId/pot', requireUserAuth, validateSchema(potCreateSchema), (req, res) => {
     const node = nodes.get(req.params.nodeId);
     if (!node || node.userId !== req.userId) return res.status(404).json({ error: 'NotFound', message: 'Node not found.' });
     const { name, note, status } = req.body || {};
