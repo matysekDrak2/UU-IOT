@@ -1,0 +1,76 @@
+{
+  "USER": {
+    "user": "User",
+    "profile": "Profile",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "phone": "Phone",
+    "address": "Address",
+    "birthdate": "Birthdate",
+    "avatar": "Avatar",
+    "settings": "Settings",
+    "preferences": "Preferences"
+  },
+  "ACTION": {
+    "login": "Login",
+    "logout": "Logout",
+    "sign_up": "Sign up",
+    "delete": "Delete",
+    "delete_account": "Delete account",
+    "edit": "Edit",
+    "edit_profile": "Edit profile",
+    "update": "Update",
+    "update_profile": "Update profile",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "refresh": "Refresh",
+    "add_new": "Add new",
+    "add_new_node": "Add new node"
+  },
+  "STATUS": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "online": "Online",
+    "offline": "Offline",
+    "normal": "Normal",
+    "above_normal": "Above normal",
+    "below_normal": "Below normal",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "NOTIFICATION": {
+    "incorrect": "Incorrect {{field}}",
+    "not_found": "{{field}} not found",
+    "already_exist": "{{field}} already exist",
+    "unauthorized": "Unauthorized",
+    "success": "Success",
+    "error": "Error",
+    "loading": "Loading",
+    "try_again": "Try again",
+    "soil_moisture_low": "Soil moisture in “{{node}}” below normal",
+    "soil_moisture_high": "Soil moisture in “{{node}}” above normal"
+  },
+  "NODE": {
+    "node": "Node",
+    "nodes": "Nodes",
+    "name": "Name",
+    "device_id": "Device ID",
+    "provisioning_code": "Provisioning code",
+    "gateway": "Gateway",
+    "choose_gateway": "Choose gateway",
+    "last_update": "Last update",
+    "condition": "Condition",
+    "moisture": "Soil moisture",
+    "signal": "Signal strength"
+  },
+  "UI": {
+    "menu": "Menu",
+    "smart_garden": "SmartGarden",
+    "new_node": "New node",
+    "edit_node": "Edit node"
+  }
+}
