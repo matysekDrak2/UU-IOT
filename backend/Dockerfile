@@ -1,14 +1,22 @@
-FROM ubuntu:latest
+FROM node:18-alpine
+
 LABEL authors="Niraku Khas"
 
-RUN apt-get update && apt-get install -y nodejs npm
+WORKDIR /app
 
-COPY ./dao /app/dao
-WORKDIR /app/dao
-RUN npm install
+# copy package and source
+COPY ./api/package.json ./api/package-lock.json* ./api/
+COPY ./api/tsconfig.json ./api/
+COPY ./api/src ./api/src
+# dao is included inside api/src/dao per code below (no separate npm install needed)
 
-COPY ./api /app/api
 WORKDIR /app/api
-RUN npm install
 
-ENTRYPOINT ["./index.mjs"]
+RUN npm install #ci --production=false
+
+# build TS
+RUN npm run build
+
+EXPOSE 8080
+
+CMD ["node", "dist/index.js"]

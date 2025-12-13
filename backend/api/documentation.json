@@ -7,10 +7,20 @@
   },
   "servers": [
     {
-      "url": "https://localhost:8080/api/V1"
-    },
-    {
-      "url": "http://localhost:8080/api/V1"
+      "url": "{protocol}://{host}:{port}/api/V1",
+      "variables": {
+        "protocol": {
+          "default": "https",
+          "enum": ["http", "https"]
+        },
+        "port": {
+          "default": "8080",
+          "enum": ["8080", "8443"]
+        },
+        "host": {
+          "default": "localhost"
+        }
+      }
     }
   ],
   "tags": [
@@ -45,7 +55,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "User created successfully",
             "content": {
               "application/json": {
@@ -230,6 +240,101 @@
           }
         },
         "tags": ["User"]
+      },
+      "patch": {
+        "description": "Update user fields (username, email, password)",
+        "summary": "Update authenticated user",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string", "maxLength": 30 },
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "format": "sha512" }
+                },
+                "additionalProperties": false
+              },
+              "example": {
+                "username": "john_updated",
+                "email": "john_updated@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" },
+                "example": {
+                  "id": "123e4567-e89b-12d3-a456-426614174000",
+                  "username": "john_updated",
+                  "email": "john_updated@example.com"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid update payload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "InvalidInput", "message": "Provided update data is invalid." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to update user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        },
+        "tags": ["User"]
+      },
+      "delete": {
+        "description": "Delete authenticated user",
+        "summary": "Delete user",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "204": { "description": "User deleted successfully - no content" },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to delete user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        },
+        "tags": ["User"]
       }
     },
     "/node": {
@@ -237,7 +342,7 @@
         "description": "Endpoint for node creation - Not intended for user Access",
         "summary": "Node creation",
         "responses": {
-          "200": {
+          "201": {
             "description": "Node created successfully",
             "content": {
               "application/json": {
@@ -319,7 +424,17 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/NodeCreate" },
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "maxLength": 50, "minLength": 3 },
+                  "note": { "type": "string", "maxLength": 200, "default": "" },
+                  "status": { "type": "string", "enum": ["active", "inactive", "unknown"], "default": "unknown" },
+                  "dataArchiving": { "type": "string", "description": "Duration in ISO 8601 format", "default": "P14D" }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              },
               "example": {
                 "name": "Garden Node",
                 "note": "Backyard sensors",
@@ -383,7 +498,7 @@
           "name": "nodeId",
           "in": "path",
           "required": true,
-          "schema": { "type": "string", "format": "UUIDv4" },
+          "schema": { "type": "string", "format": "uuid" },
           "description": "Identifier of the node"
         }
       ],
@@ -399,7 +514,15 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/NodeUpdate" },
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "maxLength": 50, "minLength": 3 },
+                  "note": { "type": "string", "maxLength": 200 },
+                  "dataArchiving": { "type": "string", "description": "Duration in ISO 8601 format" }
+                },
+                "additionalProperties": false
+              },
               "example": {
                 "name": "Updated Node Name",
                 "note": "Updated note",
@@ -568,7 +691,7 @@
           "name": "nodeId",
           "in": "path",
           "required": true,
-          "schema": { "type": "string", "format": "UUIDv4" },
+          "schema": { "type": "string", "format": "uuid" },
           "description": "Identifier of the node"
         }
       ],
@@ -628,6 +751,326 @@
           }
         },
         "tags": ["User"]
+      },
+      "post": {
+        "description": "Create a new pot under a specific node",
+        "summary": "Create pot for node",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "maxLength": 50, "minLength": 3 },
+                  "note": { "type": "string", "maxLength": 200, "default": "" },
+                  "status": { "type": "string", "enum": ["active", "inactive", "unknown"], "default": "unknown" },
+                  "reportingTime": {
+                    "type": "string",
+                    "description": "ISO 8601 duration describing how often this pot should report data (e.g. PT15M).",
+                    "default": "PT15M"
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              },
+              "example": {
+                "name": "Front Porch Pot",
+                "note": "Ivy pot",
+                "status": "active",
+                "reportingTime": "PT15M"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pot created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Pot" },
+                "example": {
+                  "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "name": "Front Porch Pot",
+                  "note": "Ivy pot",
+                  "status": "active",
+                  "reportingTime": "PT15M"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "InvalidInput", "message": "Provided pot data is invalid." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - node does not exist or not owned by user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Node not found." }
+              }
+            }
+          }
+        },
+        "tags": ["User"]
+      }
+    },
+    "/node/{nodeId}/heartbeat": {
+      "parameters": [
+        {
+          "name": "nodeId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "format": "uuid" },
+          "description": "Identifier of the node"
+        }
+      ],
+      "post": {
+        "description": "Node heartbeat: return node data and its pots. Node-authenticated (device token).",
+        "summary": "Node heartbeat",
+        "security": [{ "ApiKeyAuthNode": [] }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": false },
+              "example": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Heartbeat accepted - return node and pot state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "node": { "$ref": "#/components/schemas/Node" },
+                    "pots": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Pot" }
+                    }
+                  }
+                },
+                "example": {
+                  "node": {
+                    "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                    "userId": "123e4567-e89b-12d3-a456-426614174000",
+                    "name": "Garden Node",
+                    "note": "Backyard sensors",
+                    "status": "active",
+                    "dataArchiving": "P30D"
+                  },
+                  "pots": [
+                    {
+                      "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                      "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                      "name": "Front Porch Pot",
+                      "note": "Ivy pot",
+                      "status": "active",
+                      "reportingTime": "PT15M"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing node token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing node authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - node does not exist",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Node not found." }
+              }
+            }
+          }
+        },
+        "tags": ["Node"]
+      }
+    },
+    "/node/{nodeId}/error": {
+      "parameters": [
+        {
+          "name": "nodeId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "format": "uuid" },
+          "description": "Identifier of the node"
+        }
+      ],
+      "post": {
+        "description": "Report an error from a node (device).",
+        "summary": "Node report error",
+        "security": [{ "ApiKeyAuthNode": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string", "description": "Short error code" },
+                  "message": { "type": "string", "description": "Human-readable error message" },
+                  "severity": { "type": "string", "enum": ["low", "medium", "high"], "default": "medium" },
+                  "timestamp": { "type": "string", "format": "date-time", "description": "When the error occurred" }
+                },
+                "required": ["code", "message"],
+                "additionalProperties": false
+              },
+              "example": {
+                "code": "SENSOR_FAIL",
+                "message": "Moisture sensor disconnected",
+                "severity": "high",
+                "timestamp": "2025-01-01T12:00:00Z"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Error recorded successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NodeError" },
+                "example": {
+                  "id": "e1f2d3c4-5b6a-7d8c-9a0b-123456abcdef",
+                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "code": "SENSOR_FAIL",
+                  "message": "Moisture sensor disconnected",
+                  "severity": "high",
+                  "timestamp": "2025-01-01T12:00:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid error payload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "InvalidInput", "message": "Provided error data is invalid." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing node token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing node authentication token." }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - node does not exist",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "NotFound", "message": "Node not found." }
+              }
+            }
+          }
+        },
+        "tags": ["Node"]
+      }
+    },
+    "/node/error": {
+      "get": {
+        "description": "Get errors reported by nodes owned by the authenticated user. Optional filters: nodeId, timeStart, timeEnd.",
+        "summary": "List node errors for user",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "nodeId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "Filter errors by node id"
+          },
+          {
+            "name": "timeStart",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Filter start timestamp (ISO 8601)"
+          },
+          {
+            "name": "timeEnd",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "Filter end timestamp (ISO 8601)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of node errors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/NodeError" }
+                },
+                "example": [
+                  {
+                    "id": "e1f2d3c4-5b6a-7d8c-9a0b-123456abcdef",
+                    "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                    "code": "SENSOR_FAIL",
+                    "message": "Moisture sensor disconnected",
+                    "severity": "high",
+                    "timestamp": "2025-01-01T12:00:00Z"
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Unauthorized", "message": "Invalid or missing authentication token." }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error - failed to retrieve node errors",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "ServerError", "message": "An internal error occurred. Please try again later." }
+              }
+            }
+          }
+        },
+        "tags": ["User"]
       }
     },
     "/pot/{potId}": {
@@ -636,7 +1079,7 @@
           "name": "potId",
           "in": "path",
           "required": true,
-          "schema": { "type": "string", "format": "UUIDv4" },
+          "schema": { "type": "string", "format": "uuid" },
           "description": "Identifier of the pot"
         }
       ],
@@ -693,7 +1136,7 @@
         "tags": ["User"]
       },
       "patch": {
-        "description": "Update pot fields (name, note)",
+        "description": "Update pot fields (name, note, reportingTime)",
         "summary": "Partial update of a pot",
         "security": [
           { "ApiKeyAuth": [] }
@@ -702,8 +1145,19 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PotUpdate" },
-              "example": { "name": "Updated Pot Name", "note": "Updated note" }
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "maxLength": 50, "minLength": 3 },
+                  "note": { "type": "string", "maxLength": 200 },
+                  "reportingTime": {
+                    "type": "string",
+                    "description": "ISO 8601 duration describing how often this pot should report data (e.g. PT15M)."
+                  }
+                },
+                "additionalProperties": false
+              },
+              "example": { "name": "Updated Pot Name", "note": "Updated note", "reportingTime": "PT30M" }
             }
           }
         },
@@ -809,7 +1263,7 @@
           "name": "potId",
           "in": "path",
           "required": true,
-          "schema": { "type": "string", "format": "UUIDv4" },
+          "schema": { "type": "string", "format": "uuid" },
           "description": "Identifier of the pot"
         },
         {
@@ -984,7 +1438,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "readOnly": true
           },
           "username": {
@@ -1015,7 +1469,7 @@
         "properties": {
           "userId": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "description": "Reference to the User that owns this token",
             "readOnly": true
           },
@@ -1024,7 +1478,7 @@
             "description": "SHA512"
           },
           "expiration": {
-            "type": "Timestamp",
+            "type": "date-time",
             "description": "Timestamp when the token expires",
             "readOnly": true
           }
@@ -1036,12 +1490,12 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "readOnly": true
           },
           "userId": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "description": "Reference to the User that owns this node",
             "readOnly": true
           },
@@ -1074,7 +1528,7 @@
         "properties": {
           "nodeId": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "description": "Reference to the Node that owns this token",
             "readOnly": true
           },
@@ -1090,12 +1544,12 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "readOnly": true
           },
           "nodeId": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "description": "Reference to the Node that owns this pot",
             "readOnly": true
           },
@@ -1114,6 +1568,11 @@
             "type": "string",
             "enum": ["active", "inactive", "unknown"],
             "default": "unknown"
+          },
+          "reportingTime": {
+            "type": "string",
+            "description": "ISO 8601 duration describing how often this pot should report data (e.g. PT15M).",
+            "default": "PT15M"
           }
         },
         "required": ["id", "nodeId", "status"]
@@ -1123,12 +1582,12 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "readOnly": true
           },
           "potId": {
             "type": "string",
-            "format": "UUIDv4",
+            "format": "uuid",
             "description": "Reference to the Pot that owns this measurement",
             "readOnly": true
           },
@@ -1149,8 +1608,27 @@
         },
         "required": ["id", "potId", "timestamp", "value", "type"]
       },
-
-
+      "NodeError": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "nodeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Reference to the node that reported the error",
+            "readOnly": true
+          },
+          "code": { "type": "string", "description": "Short error code" },
+          "message": { "type": "string", "description": "Human-readable error message" },
+          "severity": { "type": "string", "enum": ["low", "medium", "high"], "default": "medium" },
+          "timestamp": { "type": "string", "format": "date-time", "description": "When the error occurred" }
+        },
+        "required": ["id", "nodeId", "code", "message", "timestamp"]
+      },
       "Error": {
         "type": "object",
         "properties": {
@@ -1168,33 +1646,6 @@
           "error": "CreationFailed",
           "message": "User creation process failed. Check input and try again."
         }
-      },
-      "NodeCreate": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string", "maxLength": 50, "minLength": 3 },
-          "note": { "type": "string", "maxLength": 200, "default": "" },
-          "status": { "type": "string", "enum": ["active", "inactive", "unknown"], "default": "unknown" },
-          "dataArchiving": { "type": "string", "description": "Duration in ISO 8601 format", "default": "P14D" }
-        },
-        "required": ["name"]
-      },
-      "NodeUpdate": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string", "maxLength": 50, "minLength": 3 },
-          "note": { "type": "string", "maxLength": 200 },
-          "dataArchiving": { "type": "string", "description": "Duration in ISO 8601 format" }
-        },
-        "additionalProperties": false
-      },
-      "PotUpdate": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string", "maxLength": 50, "minLength": 3 },
-          "note": { "type": "string", "maxLength": 200 }
-        },
-        "additionalProperties": false
       }
     },
     "securitySchemes": {

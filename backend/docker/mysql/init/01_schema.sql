@@ -1,70 +1,81 @@
--- Creates schema for User, Token, Node, NodeToken, Pot and Measurement
-CREATE DATABASE IF NOT EXISTS mydatabase CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- Initialization schema for smart_garden_db
+
+CREATE DATABASE IF NOT EXISTS mydatabase;
 USE mydatabase;
 
--- Users table (matches "User" schema)
+-- users
 CREATE TABLE IF NOT EXISTS users (
   id CHAR(36) NOT NULL PRIMARY KEY,
-  username VARCHAR(30) NOT NULL,
+  username VARCHAR(60) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
-  password CHAR(128) NOT NULL, -- SHA512 hex
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  password_hash VARCHAR(256) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- Tokens table (user tokens) (matches "Token" schema)
+-- tokens (user tokens)
 CREATE TABLE IF NOT EXISTS tokens (
   id CHAR(36) NOT NULL PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
-  token CHAR(128) NOT NULL UNIQUE,
-  expiration DATETIME NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  token VARCHAR(255) NOT NULL,
+  expires_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
--- Nodes table (matches "Node" schema)
+-- nodes
 CREATE TABLE IF NOT EXISTS nodes (
   id CHAR(36) NOT NULL PRIMARY KEY,
-  user_id CHAR(36) NOT NULL,
-  name VARCHAR(50) NOT NULL,
-  note VARCHAR(200) DEFAULT '',
+  user_id CHAR(36) NULL,
+  name VARCHAR(100) NOT NULL,
+  note VARCHAR(1024) DEFAULT '',
   status ENUM('active','inactive','unknown') DEFAULT 'unknown',
-  data_archiving VARCHAR(50) DEFAULT 'P14D',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_nodes_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  data_archiving VARCHAR(64) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
 
--- Node tokens table (matches "NodeToken" schema)
+-- node tokens (device tokens)
 CREATE TABLE IF NOT EXISTS node_tokens (
   id CHAR(36) NOT NULL PRIMARY KEY,
   node_id CHAR(36) NOT NULL,
-  token CHAR(128) NOT NULL UNIQUE,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_node_tokens_node FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  token VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
--- Pots table (matches "Pot" schema)
+-- pots
 CREATE TABLE IF NOT EXISTS pots (
   id CHAR(36) NOT NULL PRIMARY KEY,
   node_id CHAR(36) NOT NULL,
-  name VARCHAR(50) NOT NULL,
-  note VARCHAR(200) DEFAULT '',
+  name VARCHAR(100) NOT NULL,
+  note VARCHAR(1024) DEFAULT '',
   status ENUM('active','inactive','unknown') DEFAULT 'unknown',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_pots_node FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  reporting_time VARCHAR(64) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
--- Measurements table (matches "Measurement" schema)
+-- measurements (stored per pot)
 CREATE TABLE IF NOT EXISTS measurements (
   id CHAR(36) NOT NULL PRIMARY KEY,
   pot_id CHAR(36) NOT NULL,
-  timestamp DATETIME(6) NOT NULL,
+  timestamp DATETIME NOT NULL,
   value DOUBLE NOT NULL,
-  type VARCHAR(50) DEFAULT 'moisture',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_measurements_pot FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE,
-  INDEX idx_measurements_pot (pot_id),
-  INDEX idx_measurements_timestamp (timestamp)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  type VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE,
+  INDEX (pot_id, timestamp)
+) ENGINE=InnoDB;
+
+-- node errors
+CREATE TABLE IF NOT EXISTS node_errors (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  node_id CHAR(36) NOT NULL,
+  code VARCHAR(128) NOT NULL,
+  message VARCHAR(1024) NOT NULL,
+  severity ENUM('low','medium','high') DEFAULT 'medium',
+  timestamp DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE,
+  INDEX (node_id, timestamp)
+) ENGINE=InnoDB;
