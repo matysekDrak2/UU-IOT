@@ -9,7 +9,7 @@
 // ================== BACKEND (VARIANTA A) ==================
 // Backend endpoint bez potId (potId se odvodí z tokenu)
 // PŘÍKLAD: https://api.example.com/measurement
-const char* TELEMETRY_URL = "https://api.example.com/measurement"; // <-- DOPLŇ reálnou URL
+const char* TELEMETRY_URL = "https://api.example.com/measurement"; // <-- DOPLŇIT REALNOU URL
 // HTTPS demo: setInsecure() (neověřuje certifikát)
 // ==========================================================
 
@@ -21,7 +21,7 @@ const int   DAYLIGHT_OFFSET_SEC = 0; // UTC
 // ===============================================
 
 // ================== SENSOR ==================
-const int SOIL_PIN = 4;     // musí být ADC pin na tvém ESP32-S3
+const int SOIL_PIN = 4;     // musí být ADC pin 
 int CAL_DRY = 3400;
 int CAL_WET = 1100;
 
