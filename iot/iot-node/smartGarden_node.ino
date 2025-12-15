@@ -147,7 +147,7 @@ String htmlPairingPage(const String& msg = "") {
   String currentSsid = loadPref("ssid");
 
   String s = htmlHeader("Pairing");
-  s += "<h1>🔧 Smart Flower Pot – Pairing</h1>";
+  s += "<h1>🔧 Smart Garden – Pairing</h1>";
   s += "<div class='card'>";
   if (msg.length()) s += "<p><b>" + msg + "</b></p>";
 
@@ -179,8 +179,8 @@ String htmlPairingPage(const String& msg = "") {
 String htmlNormalPage() {
   int pct = readMoisturePercent();
 
-  String s = htmlHeader("Smart Flower Pot");
-  s += "<h1>🌱 Smart Flower Pot</h1>";
+  String s = htmlHeader("Smart Garden");
+  s += "<h1>Smart Garden</h1>";
   s += "<div class='card'>";
   s += "<h2>Vlhkost půdy: " + String(pct) + "%</h2>";
 
@@ -337,7 +337,7 @@ void ensureWifiConnected() {
   }
 }
 
-// ---------- TELEMETRY (VARIANTA A) ----------
+// ---------- TELEMETRY ----------
 bool sendTelemetryOnce() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
@@ -399,7 +399,7 @@ void startPairingMode() {
 
   String mac = WiFi.macAddress();
   mac.replace(":", "");
-  apSsid = "SmartFlowerPot-" + mac.substring(mac.length() - 4);
+  apSsid = "SmartGarden-" + mac.substring(mac.length() - 4);
 
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apSsid.c_str(), AP_PASS);
@@ -455,7 +455,7 @@ void startNormalMode() {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.println("\n[BOOT] Smart Flower Pot (Variant A)");
+  Serial.println("\n[BOOT] Smart Garden");
 
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
