@@ -350,7 +350,7 @@
                   "$ref": "#/components/schemas/NodeToken"
                 },
                 "example": {
-                  "nodeId": "6f1e2b8a-1e2d-4c3b-8c9b-a3b14f0c1234",
+                  "node_id": "6f1e2b8a-1e2d-4c3b-8c9b-a3b14f0c1234",
                   "token": "b1946ac92492d2347c6235b4d2611184f3a9f6f1c4e5b2a76f2e4d5a8b7c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f7081"
                 }
               }
@@ -381,7 +381,7 @@
                 "example": [
                   {
                     "id": "6f1e2b8a-1e2d-4c3b-8c9b-a3b14f0c1234",
-                    "userId": "123e4567-e89b-12d3-a456-426614174000",
+                    "user_id": "123e4567-e89b-12d3-a456-426614174000",
                     "name": "Living Room Node",
                     "note": "Main gateway",
                     "status": "active",
@@ -452,7 +452,7 @@
                 "schema": { "$ref": "#/components/schemas/Node" },
                 "example": {
                   "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
-                  "userId": "123e4567-e89b-12d3-a456-426614174000",
+                  "user_id": "123e4567-e89b-12d3-a456-426614174000",
                   "name": "Garden Node",
                   "note": "Backyard sensors",
                   "status": "active",
@@ -492,10 +492,10 @@
         "tags": ["User"]
       }
     },
-    "/node/{nodeId}": {
+    "/node/{node_id}": {
       "parameters": [
         {
-          "name": "nodeId",
+          "name": "node_id",
           "in": "path",
           "required": true,
           "schema": { "type": "string", "format": "uuid" },
@@ -539,7 +539,7 @@
                 "schema": { "$ref": "#/components/schemas/Node" },
                 "example": {
                   "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
-                  "userId": "123e4567-e89b-12d3-a456-426614174000",
+                  "user_id": "123e4567-e89b-12d3-a456-426614174000",
                   "name": "Updated Node Name",
                   "note": "Updated note",
                   "status": "active",
@@ -645,7 +645,7 @@
                 "schema": { "$ref": "#/components/schemas/Node" },
                 "example": {
                   "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
-                  "userId": "123e4567-e89b-12d3-a456-426614174000",
+                  "user_id": "123e4567-e89b-12d3-a456-426614174000",
                   "name": "Garden Node",
                   "note": "Backyard sensors",
                   "status": "active",
@@ -685,10 +685,10 @@
         "tags": ["User"]
       }
     },
-    "/node/{nodeId}/pot": {
+    "/node/{node_id}/pot": {
       "parameters": [
         {
-          "name": "nodeId",
+          "name": "node_id",
           "in": "path",
           "required": true,
           "schema": { "type": "string", "format": "uuid" },
@@ -713,7 +713,7 @@
                 "example": [
                   {
                     "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
-                    "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                    "node_id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
                     "name": "Front Porch Pot",
                     "note": "Ivy pot",
                     "status": "active"
@@ -792,7 +792,7 @@
                 "schema": { "$ref": "#/components/schemas/Pot" },
                 "example": {
                   "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
-                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "node_id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
                   "name": "Front Porch Pot",
                   "note": "Ivy pot",
                   "status": "active",
@@ -832,10 +832,10 @@
         "tags": ["User"]
       }
     },
-    "/node/{nodeId}/heartbeat": {
+    "/node/{node_id}/heartbeat": {
       "parameters": [
         {
-          "name": "nodeId",
+          "name": "node_id",
           "in": "path",
           "required": true,
           "schema": { "type": "string", "format": "uuid" },
@@ -873,7 +873,7 @@
                 "example": {
                   "node": {
                     "id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
-                    "userId": "123e4567-e89b-12d3-a456-426614174000",
+                    "user_id": "123e4567-e89b-12d3-a456-426614174000",
                     "name": "Garden Node",
                     "note": "Backyard sensors",
                     "status": "active",
@@ -882,7 +882,7 @@
                   "pots": [
                     {
                       "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
-                      "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                      "node_id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
                       "name": "Front Porch Pot",
                       "note": "Ivy pot",
                       "status": "active",
@@ -915,10 +915,10 @@
         "tags": ["Node"]
       }
     },
-    "/node/{nodeId}/error": {
+    "/node/{node_id}/error": {
       "parameters": [
         {
-          "name": "nodeId",
+          "name": "node_id",
           "in": "path",
           "required": true,
           "schema": { "type": "string", "format": "uuid" },
@@ -961,7 +961,7 @@
                 "schema": { "$ref": "#/components/schemas/NodeError" },
                 "example": {
                   "id": "e1f2d3c4-5b6a-7d8c-9a0b-123456abcdef",
-                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "node_id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
                   "code": "SENSOR_FAIL",
                   "message": "Moisture sensor disconnected",
                   "severity": "high",
@@ -1003,12 +1003,12 @@
     },
     "/node/error": {
       "get": {
-        "description": "Get errors reported by nodes owned by the authenticated user. Optional filters: nodeId, timeStart, timeEnd.",
+        "description": "Get errors reported by nodes owned by the authenticated user. Optional filters: node_id, timeStart, timeEnd.",
         "summary": "List node errors for user",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           {
-            "name": "nodeId",
+            "name": "node_id",
             "in": "query",
             "required": false,
             "schema": { "type": "string", "format": "uuid" },
@@ -1041,7 +1041,7 @@
                 "example": [
                   {
                     "id": "e1f2d3c4-5b6a-7d8c-9a0b-123456abcdef",
-                    "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                    "node_id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
                     "code": "SENSOR_FAIL",
                     "message": "Moisture sensor disconnected",
                     "severity": "high",
@@ -1073,10 +1073,10 @@
         "tags": ["User"]
       }
     },
-    "/pot/{potId}": {
+    "/pot/{pot_id}": {
       "parameters": [
         {
-          "name": "potId",
+          "name": "pot_id",
           "in": "path",
           "required": true,
           "schema": { "type": "string", "format": "uuid" },
@@ -1097,7 +1097,7 @@
                 "schema": { "$ref": "#/components/schemas/Pot" },
                 "example": {
                   "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
-                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "node_id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
                   "name": "Front Porch Pot",
                   "note": "Ivy pot",
                   "status": "active"
@@ -1169,7 +1169,7 @@
                 "schema": { "$ref": "#/components/schemas/Pot" },
                 "example": {
                   "id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
-                  "nodeId": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
+                  "node_id": "8b3f4c1d-2a7b-4f9a-b2d3-e5f6a7b8c901",
                   "name": "Updated Pot Name",
                   "note": "Updated note",
                   "status": "active"
@@ -1257,10 +1257,10 @@
         "tags": ["User"]
       }
     },
-    "/pot/{potId}/measurement": {
+    "/pot/{pot_id}/measurement": {
       "parameters": [
         {
-          "name": "potId",
+          "name": "pot_id",
           "in": "path",
           "required": true,
           "schema": { "type": "string", "format": "uuid" },
@@ -1310,7 +1310,7 @@
                 },
                 "example": {
                   "id": "a1b2c3d4-5e6f-7a8b-9c0d-ef1234567890",
-                  "potId": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                  "pot_id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
                   "timestamp": "2025-01-01T12:00:00Z",
                   "value": 45.6,
                   "type": "moisture"
@@ -1381,7 +1381,7 @@
                 "example": [
                   {
                     "id": "a1b2c3d4-5e6f-7a8b-9c0d-ef1234567890",
-                    "potId": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
+                    "pot_id": "d3f1a2b4-5c6d-7890-ab12-cd34ef567890",
                     "timestamp": "2025-01-01T12:00:00Z",
                     "value": 45.6,
                     "type": "moisture"
@@ -1467,7 +1467,7 @@
       "Token": {
         "type": "object",
         "properties": {
-          "userId": {
+          "user_id": {
             "type": "string",
             "format": "uuid",
             "description": "Reference to the User that owns this token",
@@ -1483,7 +1483,7 @@
             "readOnly": true
           }
         },
-        "required": ["userId", "token", "expiration"]
+        "required": ["user_id", "token", "expiration"]
       },
       "Node": {
         "type": "object",
@@ -1493,7 +1493,7 @@
             "format": "uuid",
             "readOnly": true
           },
-          "userId": {
+          "user_id": {
             "type": "string",
             "format": "uuid",
             "description": "Reference to the User that owns this node",
@@ -1521,12 +1521,12 @@
             "default": "P14D"
           }
         },
-        "required": ["id", "userId", "status"]
+        "required": ["id", "user_id", "status"]
       },
       "NodeToken": {
         "type": "object",
         "properties": {
-          "nodeId": {
+          "node_id": {
             "type": "string",
             "format": "uuid",
             "description": "Reference to the Node that owns this token",
@@ -1537,7 +1537,7 @@
             "description": "SHA512"
           }
         },
-        "required": ["nodeId", "token"]
+        "required": ["node_id", "token"]
       },
       "Pot": {
         "type": "object",
@@ -1547,7 +1547,7 @@
             "format": "uuid",
             "readOnly": true
           },
-          "nodeId": {
+          "node_id": {
             "type": "string",
             "format": "uuid",
             "description": "Reference to the Node that owns this pot",
@@ -1575,7 +1575,7 @@
             "default": "PT15M"
           }
         },
-        "required": ["id", "nodeId", "status"]
+        "required": ["id", "node_id", "status"]
       },
       "Measurement": {
         "type": "object",
@@ -1585,7 +1585,7 @@
             "format": "uuid",
             "readOnly": true
           },
-          "potId": {
+          "pot_id": {
             "type": "string",
             "format": "uuid",
             "description": "Reference to the Pot that owns this measurement",
@@ -1606,7 +1606,7 @@
             "default": "moisture"
           }
         },
-        "required": ["id", "potId", "timestamp", "value", "type"]
+        "required": ["id", "pot_id", "timestamp", "value", "type"]
       },
       "NodeError": {
         "type": "object",
@@ -1616,7 +1616,7 @@
             "format": "uuid",
             "readOnly": true
           },
-          "nodeId": {
+          "node_id": {
             "type": "string",
             "format": "uuid",
             "description": "Reference to the node that reported the error",
@@ -1627,7 +1627,7 @@
           "severity": { "type": "string", "enum": ["low", "medium", "high"], "default": "medium" },
           "timestamp": { "type": "string", "format": "date-time", "description": "When the error occurred" }
         },
-        "required": ["id", "nodeId", "code", "message", "timestamp"]
+        "required": ["id", "node_id", "code", "message", "timestamp"]
       },
       "Error": {
         "type": "object",

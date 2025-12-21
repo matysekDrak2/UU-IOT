@@ -3,6 +3,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { randomUUID } from "crypto";
 import * as dao from "../dao";
+import * as crypto from "node:crypto";
 
 const router = express.Router();
 
@@ -61,6 +62,7 @@ router.put("/", validateSchema(userCreateSchema), async (req, res) => {
   const existing = await dao.findUserByEmail(email);
   if (existing) return res.status(400).json({ error: "CreationFailed", message: "Email already used" });
   const user = await dao.createUser(username, email, password);
+  if (!user) return res.status(500).json({ error: "CreationFailed", message: "Could not create user" });
   res.status(201).json(user);
 });
 
@@ -68,7 +70,7 @@ router.put("/", validateSchema(userCreateSchema), async (req, res) => {
 router.post("/", validateSchema(userLoginSchema), async (req, res) => {
   const { email, password } = req.body;
   const user = await dao.findUserByEmail(email);
-  if (!user || user.password_hash !== password) return res.status(401).json({ error: "AuthenticationFailed", message: "Invalid credentials" });
+  if (!user || !crypto.timingSafeEqual(user.password_hash, password)) return res.status(401).json({ error: "AuthenticationFailed", message: "Invalid credentials" });
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
   await dao.storeUserToken(user.id, token, expiresAt);
@@ -91,16 +93,38 @@ router.patch("/", requireUserAuth, async (req, res) => {
   if (email) { updates.push("email = ?"); params.push(email); }
   if (password) { updates.push("password_hash = ?"); params.push(password); }
   if (updates.length === 0) return res.status(400).json({ error: "InvalidInput", message: "No updatable fields provided" });
-  await dao.getPool().execute(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, [...params, user.id]);
-  const updated = await dao.getPool().execute<any[]>("SELECT id, username, email FROM users WHERE id = ? LIMIT 1", [user.id]);
-  res.json((updated as any)[0][0]);
+
+  try {
+    const result = await dao.getPool().execute(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, [...params, user.id]);
+    const header = (result as any)[0] as { affectedRows?: number };
+    if (!header || typeof header.affectedRows !== "number" || header.affectedRows !== 1) {
+      return res.status(500).json({ error: "UpdateFailed", message: "User update failed" });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: "UpdateFailed", message: "Database error" });
+  }
+
+  try {
+    const [rows] = await dao.getPool().execute<any[]>("SELECT id, username, email FROM users WHERE id = ? LIMIT 1", [user.id]);
+    return res.json(rows[0]);
+  } catch (err) {
+    return res.status(500).json({ error: "ReadFailed", message: "Could not read updated user" });
+  }
 });
 
 // delete user
 router.delete("/", requireUserAuth, async (req, res) => {
   const user = (req as any).user;
-  await dao.getPool().execute("DELETE FROM users WHERE id = ?", [user.id]);
-  res.status(204).send();
+  try {
+    const result = await dao.getPool().execute("DELETE FROM users WHERE id = ?", [user.id]);
+    const header = (result as any)[0] as { affectedRows?: number };
+    if (!header || typeof header.affectedRows !== "number" || header.affectedRows !== 1) {
+      return res.status(500).json({ error: "DeleteFailed", message: "Could not delete user" });
+    }
+    return res.status(204).send();
+  } catch (err) {
+    return res.status(500).json({ error: "DeleteFailed", message: "Database error" });
+  }
 });
 
 export default router;
