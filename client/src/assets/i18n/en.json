@@ -10,11 +10,12 @@
     "birthdate": "Birthdate",
     "avatar": "Avatar",
     "settings": "Settings",
-    "preferences": "Preferences"
+    "preferences": "Preferences",
+    "account_info": "Account information"
   },
   "ACTION": {
     "login": "Login",
-    "logout": "Logout",
+    "log_out": "Log out",
     "sign_up": "Sign up",
     "delete": "Delete",
     "delete_account": "Delete account",
@@ -27,7 +28,8 @@
     "confirm": "Confirm",
     "refresh": "Refresh",
     "add_new": "Add new",
-    "add_new_node": "Add new node"
+    "add_new_node": "Add new node",
+    "back": "Back"
   },
   "STATUS": {
     "active": "Active",
@@ -52,12 +54,17 @@
     "loading": "Loading",
     "try_again": "Try again",
     "soil_moisture_low": "Soil moisture in “{{node}}” below normal",
-    "soil_moisture_high": "Soil moisture in “{{node}}” above normal"
+    "soil_moisture_high": "Soil moisture in “{{node}}” above normal",
+    "failed_load_profile": "Failed to load profile",
+    "failed_load_node_det": "Failed to load node details",
+    "unable_load": "Unable to load data"
   },
   "NODE": {
     "node": "Node",
     "nodes": "Nodes",
+    "node_details": "Node details",
     "name": "Name",
+    "device_info": "Device info",
     "device_id": "Device ID",
     "provisioning_code": "Provisioning code",
     "gateway": "Gateway",

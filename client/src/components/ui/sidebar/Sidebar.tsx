@@ -1,30 +1,33 @@
+import { NavLink, useLocation } from "react-router-dom";
 import styles from "./Sidebar.module.css";
 
-type Tool = { key: string; label: string };
+type Tool = { key: string; label: string; path: string };
 
 type SidebarProps = {
   readonly tools: Tool[];
-  readonly selected: string;
-  readonly onSelect: (key: string) => void;
 };
 
-function Sidebar({ tools, selected, onSelect }: SidebarProps) {
+export default function Sidebar({ tools }: SidebarProps) {
+  const location = useLocation();
+
   return (
     <div className="sidebar">
-      {tools.map((tool) => (
-        <button
-          key={tool.key}
-          className={[
-            styles["sidebar-button"],
-            selected === tool.key ? styles["selected-sidebar-button"] : "",
-          ].join(" ")}
-          onClick={() => onSelect(tool.key)}
-        >
-          {tool.label}
-        </button>
-      ))}
+      {tools.map((tool) => {
+        const isSelected = location.pathname === tool.path;
+
+        return (
+          <NavLink
+            key={tool.key}
+            to={tool.path}
+            className={[
+              styles["sidebar-button"],
+              isSelected ? styles["selected-sidebar-button"] : "",
+            ].join(" ")}
+          >
+            {tool.label}
+          </NavLink>
+        );
+      })}
     </div>
   );
 }
-
-export default Sidebar;
