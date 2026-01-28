@@ -3,13 +3,13 @@
 #include <Preferences.h>
 #include <DNSServer.h>
 #include <HTTPClient.h>
-#include <WiFiClientSecure.h>
+#include <WiFiClient.h>
 #include <time.h>
 
-// ================== BACKEND (VARIANTA A) ==================
-// Backend endpoint bez potId (potId se odvodí z tokenu)
-// PŘÍKLAD: https://api.example.com/measurement
-const char* TELEMETRY_URL = "https://api.example.com/measurement"; // <-- DOPLŇIT REALNOU URL
+// Base URL backendu (včetně /api/V1)
+// Příklad: https://api.example.com/api/V1
+const char* API_BASE = "http://10.0.0.245:8080/api/V1"; // <-- DOPLŇ REALNOU URL
+
 // HTTPS demo: setInsecure() (neověřuje certifikát)
 // ==========================================================
 
@@ -22,11 +22,13 @@ const int   DAYLIGHT_OFFSET_SEC = 0; // UTC
 
 // ================== SENSOR ==================
 const int SOIL_PIN = 4;     // musí být ADC pin 
-int CAL_DRY = 3400;
-int CAL_WET = 1100;
+int CAL_DRY = 3645;
+int CAL_WET = 1215;
 
 // ================== TIMING ==================
-const unsigned long SEND_INTERVAL_MS   = 10UL * 1000UL;        // 10 s (demo)
+//const unsigned long SEND_INTERVAL_MS = 5UL * 60UL * 1000UL; // 5 minut
+const unsigned long SEND_INTERVAL_MS = 15UL * 60UL * 1000UL; // 15 min
+// const unsigned long SEND_INTERVAL_MS   = 10UL * 1000UL;        // 10 s (demo)
 // const unsigned long SEND_INTERVAL_MS = 4UL * 60UL * 60UL * 1000UL; // 4 h (produkce)
 
 const unsigned long WIFI_RETRY_MS      = 10UL * 1000UL;        // reconnect pokus
@@ -84,8 +86,16 @@ void savePref(const char* key, const String& value) {
   prefs.end();
 }
 
+bool wasNvsCleared() { return loadPref("nvsCleared") == "1"; }
+void markNvsCleared() { savePref("nvsCleared", "1"); }
+
+
 bool hasToken()     { return loadPref("token").length() > 0; }
 bool hasWifiCreds() { return loadPref("ssid").length() > 0; }
+
+bool hasPotId() { return loadPref("potId").length() > 0; }
+String getPotId() { return loadPref("potId"); }
+
 
 String getToken() { return loadPref("token"); }
 String getSsid()  { return loadPref("ssid"); }
@@ -145,15 +155,19 @@ String htmlFooter() { return "</body></html>"; }
 
 String htmlPairingPage(const String& msg = "") {
   String currentSsid = loadPref("ssid");
+  String currentPotId = loadPref("potId");
 
   String s = htmlHeader("Pairing");
   s += "<h1>🔧 Smart Garden – Pairing</h1>";
   s += "<div class='card'>";
   if (msg.length()) s += "<p><b>" + msg + "</b></p>";
 
-  s += "<p><small>Vyplň domácí Wi-Fi a node token. Po uložení se zařízení restartuje.</small></p>";
+  s += "<p><small>Vyplň domácí Wi-Fi, Pot ID a node token. Po uložení se zařízení restartuje.</small></p>";
 
   s += "<form method='POST' action='/save'>";
+  s += "<label>Pot ID</label>";
+  s += "<input name='potId' placeholder='UUID potu' value='" + currentPotId + "' required>";
+
   s += "<label>Wi-Fi SSID</label>";
   s += "<input name='ssid' placeholder='např. O2-Internet-xxx' value='" + currentSsid + "' required>";
 
@@ -231,15 +245,18 @@ void handleApiRaw() {
 }
 
 void handleSave() {
-  String ssid = server.arg("ssid"); ssid.trim();
-  String pass = server.arg("pass");
+  String ssid  = server.arg("ssid");  ssid.trim();
+  String pass  = server.arg("pass");
   String token = server.arg("token"); token.trim();
+  String potId = server.arg("potId"); potId.trim();
 
-  if (ssid.length() == 0 || token.length() == 0) {
-    server.send(400, "text/html; charset=utf-8", htmlPairingPage("Chybí SSID nebo token."));
+  if (ssid.length() == 0 || token.length() == 0 || potId.length() == 0) {
+    server.send(400, "text/html; charset=utf-8", htmlPairingPage("Chybí SSID, token nebo potId."));
     return;
   }
 
+  // Ukládáme do NVS (Preferences) pod konzistentními klíči:
+  savePref("potId", potId);
   savePref("ssid", ssid);
   savePref("pass", pass);
   savePref("token", token);
@@ -247,20 +264,6 @@ void handleSave() {
   server.send(200, "text/html; charset=utf-8",
               htmlHeader("Saved") +
               "<h1>Uloženo</h1><div class='card'><p>Konfigurace uložena. Restartuji…</p></div>" +
-              htmlFooter());
-
-  delay(1200);
-  ESP.restart();
-}
-
-void handleReset() {
-  prefs.begin("iot", false);
-  prefs.clear();
-  prefs.end();
-
-  server.send(200, "text/html; charset=utf-8",
-              htmlHeader("Reset") +
-              "<h1>🧹 Reset</h1><div class='card'><p>Smazáno. Restartuji…</p></div>" +
               htmlFooter());
 
   delay(1200);
@@ -341,6 +344,14 @@ void ensureWifiConnected() {
 bool sendTelemetryOnce() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
+  // --- SENSOR first (kalibrace/log) ---
+  int raw = readSoilRaw();
+  int pct = rawToPercent(raw);
+  Serial.printf("[SENSOR] raw=%d pct=%d (CAL_DRY=%d CAL_WET=%d)\n", raw, pct, CAL_DRY, CAL_WET);
+
+  // Pokud teď kalibrujeme, klidně to tady můžeš dočasně ukončit:
+  //return true;
+
   // pokud není validní čas, zkus NTP ještě jednou a kdyžtak přeskoč
   if (!timeIsValid()) {
     Serial.println("[TELEMETRY] Time invalid -> trying NTP sync");
@@ -351,28 +362,35 @@ bool sendTelemetryOnce() {
     }
   }
 
-  int moisture = readMoisturePercent();
+  String potId = getPotId();
+  if (potId.length() == 0) {
+    Serial.println("[TELEMETRY] Missing potId -> cannot send");
+    return false;
+  }
+
+  String url = String(API_BASE) + "/pot/" + potId + "/measurement";
   String token = getToken();
 
   String ts = isoTimestampUtc();
   if (ts.length() == 0) return false;
 
-  // backend expects: { timestamp, value, type }
+  // použijeme pct jako odesílanou hodnotu
+  int moisture = pct;
+
   String body = "{";
   body += "\"timestamp\":\"" + ts + "\",";
   body += "\"value\":" + String(moisture) + ",";
-  body += "\"type\":\"soilMoisture\"";
+  body += "\"type\":\"moisture\"";
   body += "}";
 
-  WiFiClientSecure client;
-  client.setInsecure(); // demo
-
+  WiFiClient client;
   HTTPClient http;
-  http.begin(client, TELEMETRY_URL);
+
+  http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
 
-  Serial.println("[TELEMETRY] PUT " + String(TELEMETRY_URL));
+  Serial.println("[TELEMETRY] PUT " + url);
   Serial.println("[TELEMETRY] Body: " + body);
 
   int code = http.sendRequest("PUT", (uint8_t*)body.c_str(), body.length());
@@ -388,6 +406,8 @@ bool sendTelemetryOnce() {
   http.end();
   return (code >= 200 && code < 300);
 }
+
+
 
 // ---------- MODES ----------
 void startPairingMode() {
@@ -451,6 +471,21 @@ void startNormalMode() {
   lastSend = 0;
 }
 
+void handleReset() {
+  prefs.begin("iot", false);
+  prefs.clear();
+  prefs.end();
+
+  server.send(200, "text/html; charset=utf-8",
+              htmlHeader("Reset") +
+              "<h1>🧹 Reset</h1><div class='card'><p>Smazáno. Restartuji…</p></div>" +
+              htmlFooter());
+
+  delay(1200);
+  ESP.restart();
+}
+
+
 // ================== SETUP / LOOP ==================
 void setup() {
   Serial.begin(115200);
@@ -460,7 +495,7 @@ void setup() {
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
 
-  if (!hasToken() || !hasWifiCreds()) startPairingMode();
+  if (!hasToken() || !hasWifiCreds() || !hasPotId()) startPairingMode();
   else startNormalMode();
 }
 
@@ -485,4 +520,5 @@ void loop() {
   }
 
   delay(1);
+
 }
