@@ -1,0 +1,76 @@
+{
+  "USER": {
+    "user": "Uživatel",
+    "profile": "Profil",
+    "username": "Uživatelské jméno",
+    "email": "E-mail",
+    "password": "Heslo",
+    "phone": "Telefon",
+    "address": "Adresa",
+    "birthdate": "Datum narození",
+    "avatar": "Avatar",
+    "settings": "Nastavení",
+    "preferences": "Předvolby"
+  },
+  "ACTION": {
+    "login": "Přihlásit se",
+    "logout": "Odhlásit se",
+    "sign_up": "Registrovat se",
+    "delete": "Smazat",
+    "delete_account": "Smazat účet",
+    "edit": "Upravit",
+    "edit_profile": "Upravit profil",
+    "update": "Aktualizovat",
+    "update_profile": "Aktualizovat profil",
+    "save": "Uložit",
+    "cancel": "Zrušit",
+    "confirm": "Potvrdit",
+    "refresh": "Obnovit",
+    "add_new": "Přidat",
+    "add_new_node": "Přidat nový uzel"
+  },
+  "STATUS": {
+    "active": "Aktivní",
+    "inactive": "Neaktivní",
+    "verified": "Ověřeno",
+    "unverified": "Neověřeno",
+    "online": "Online",
+    "offline": "Offline",
+    "normal": "Normální",
+    "above_normal": "Nad normálem",
+    "below_normal": "Pod normálem",
+    "connected": "Připojeno",
+    "disconnected": "Odpojeno"
+  },
+  "NOTIFICATION": {
+    "incorrect": "Nesprávné {{field}}",
+    "not_found": "{{field}} nenalezeno",
+    "already_exist": "{{field}} již existuje",
+    "unauthorized": "Neautorizováno",
+    "success": "Úspěch",
+    "error": "Chyba",
+    "loading": "Načítání",
+    "try_again": "Zkusit znovu",
+    "soil_moisture_low": "Vlhkost půdy v „{{node}}“ je pod normálem",
+    "soil_moisture_high": "Vlhkost půdy v „{{node}}“ je nad normálem"
+  },
+  "NODE": {
+    "node": "Uzel",
+    "nodes": "Uzly",
+    "name": "Název",
+    "device_id": "ID zařízení",
+    "provisioning_code": "Provisioning kód",
+    "gateway": "Gateway",
+    "choose_gateway": "Vybrat gateway",
+    "last_update": "Poslední aktualizace",
+    "condition": "Stav",
+    "moisture": "Vlhkost půdy",
+    "signal": "Síla signálu"
+  },
+  "UI": {
+    "menu": "Menu",
+    "smart_garden": "SmartGarden",
+    "new_node": "Nový uzel",
+    "edit_node": "Upravit uzel"
+  }
+}
