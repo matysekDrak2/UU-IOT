@@ -66,6 +66,16 @@ const userLoginSchema = {
   additionalProperties: false
 };
 
+const nodeClaimSchema = {
+  type: 'object',
+  properties: {
+    token: { type: 'string', minLength: 1 }
+  },
+  required: ['token'],
+  additionalProperties: false
+};
+
+
 const nodeCreateSchema = {
   type: 'object',
   properties: {
@@ -221,6 +231,36 @@ app.put('/node', (req, res) => {
     nodeTokens.set(tokenHash, { nodeId: id, expires: nowPlusDays(365) });
     return res.status(200).json({ nodeId: id, token: raw });
 });
+
+// POST /node/:nodeId/claim - user claims a device-created node using node token
+app.post('/node/:nodeId/claim', requireUserAuth, validateSchema(nodeClaimSchema), (req, res) => {
+  const { nodeId } = req.params;
+  const { token } = req.body || {};
+
+  // token is RAW node token; nodeTokens map stores hash(token) -> { nodeId, expires }
+  const tokenHash = hash(token);
+  const entry = nodeTokens.get(tokenHash);
+
+  if (!entry || entry.nodeId !== nodeId) {
+    return res.status(401).json({ error: 'Unauthorized', message: 'Invalid node token for this nodeId' });
+  }
+
+  const node = nodes.get(nodeId);
+  if (!node) {
+    return res.status(404).json({ error: 'NotFound', message: 'Node not found.' });
+  }
+
+  // if already claimed by someone else
+  if (node.userId && node.userId !== req.userId) {
+    return res.status(409).json({ error: 'Conflict', message: 'Node is already claimed by another user' });
+  }
+
+  node.userId = req.userId;
+  nodes.set(nodeId, node);
+
+  return res.status(200).json(node);
+});
+
 
 // GET /node - list nodes owned by authenticated user
 app.get('/node', requireUserAuth, (req, res) => {
