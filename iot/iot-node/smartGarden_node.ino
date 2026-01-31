@@ -6,52 +6,68 @@
 #include <WiFiClient.h>
 #include <time.h>
 
+// =====================================
+// BACKEND
+// =====================================
 // Base URL backendu (včetně /api/V1)
-// Příklad: https://api.example.com/api/V1
-const char* API_BASE = "http://10.0.0.245:8080/api/V1"; // <-- DOPLŇ REALNOU URL
+const char* API_BASE = "http://10.0.0.245:8080/api/V1";
 
-// HTTPS demo: setInsecure() (neověřuje certifikát)
-// ==========================================================
+// Endpoints, které si ESP volá (musí existovat na backendu)
+const char* ENDPOINT_REGISTER  = "/node";   // PUT (bez auth), body: { userId, deviceId, name }
+const char* ENDPOINT_HEARTBEAT = "/node/heartbeat";  // PUT  (node-auth), body: { timestamp, uptimeSec, rssi }
 
-// ================== TIME (NTP) ==================
+// =====================================
+// TIME (NTP)
+// =====================================
 const char* NTP_SERVER_1 = "pool.ntp.org";
 const char* NTP_SERVER_2 = "time.nist.gov";
 const long  GMT_OFFSET_SEC = 0;      // UTC
 const int   DAYLIGHT_OFFSET_SEC = 0; // UTC
-// ===============================================
 
-// ================== SENSOR ==================
-const int SOIL_PIN = 4;     // musí být ADC pin 
+// =====================================
+// SENSOR
+// =====================================
+const int SOIL_PIN = 4;     // ADC pin
 int CAL_DRY = 3645;
 int CAL_WET = 1215;
 
-// ================== TIMING ==================
-//const unsigned long SEND_INTERVAL_MS = 5UL * 60UL * 1000UL; // 5 minut
-const unsigned long SEND_INTERVAL_MS = 15UL * 60UL * 1000UL; // 15 min
-// const unsigned long SEND_INTERVAL_MS   = 10UL * 1000UL;        // 10 s (demo)
-// const unsigned long SEND_INTERVAL_MS = 4UL * 60UL * 60UL * 1000UL; // 4 h (produkce)
+// =====================================
+// TIMING
+// =====================================
+//const unsigned long SEND_INTERVAL_MS       = 15UL * 60UL * 1000UL; // 15 min (produkce)
+const unsigned long SEND_INTERVAL_MS       = 10UL * 1000UL;  // 10 s (demo)
 
-const unsigned long WIFI_RETRY_MS      = 10UL * 1000UL;        // reconnect pokus
-const unsigned long WIFI_FAIL_MAX_MS   = 2UL * 60UL * 1000UL;  // po 2 min bez WiFi -> pairing
-const unsigned long NTP_RESYNC_MS      = 6UL * 60UL * 60UL * 1000UL; // resync času každých 6h
+const unsigned long WIFI_RETRY_MS          = 10UL * 1000UL;
+const unsigned long WIFI_FAIL_MAX_MS       = 2UL * 60UL * 1000UL;
+const unsigned long NTP_RESYNC_MS          = 6UL * 60UL * 60UL * 1000UL;
 
-// ================== GLOBALS ==================
+const unsigned long HEARTBEAT_INTERVAL_MS  = 60UL * 1000UL; // 60 s
+const unsigned long PROVISION_RETRY_MS     = 20UL * 1000UL; // 20 s (když backend nedostupný)
+
+// =====================================
+// GLOBALS
+// =====================================
 WebServer server(80);
 DNSServer dnsServer;
 Preferences prefs;
 
 const byte DNS_PORT = 53;
-const char* AP_PASS = "12345678"; // min 8 znaků (WPA2)
+const char* AP_PASS = "12345678"; // WPA2
 
 bool isPairingMode = false;
 String apSsid;
 
 unsigned long lastSend = 0;
+unsigned long lastHeartbeat = 0;
 unsigned long lastWifiRetry = 0;
-unsigned long wifiDownSince = 0; // 0 = WiFi OK / neřešíme
+unsigned long wifiDownSince = 0;
 unsigned long lastNtpSync = 0;
 
-// ---------- SENSOR ----------
+unsigned long lastProvisionAttempt = 0;
+
+// =====================================
+// SENSOR HELPERS
+// =====================================
 int readSoilRaw(uint8_t samples = 8) {
   long acc = 0;
   for (uint8_t i = 0; i < samples; i++) {
@@ -72,7 +88,9 @@ int readMoisturePercent() {
   return rawToPercent(readSoilRaw());
 }
 
-// ---------- PREFERENCES (NVS) ----------
+// =====================================
+// PREFERENCES (NVS)
+// =====================================
 String loadPref(const char* key) {
   prefs.begin("iot", true);
   String v = prefs.getString(key, "");
@@ -86,22 +104,22 @@ void savePref(const char* key, const String& value) {
   prefs.end();
 }
 
-bool wasNvsCleared() { return loadPref("nvsCleared") == "1"; }
-void markNvsCleared() { savePref("nvsCleared", "1"); }
-
-
-bool hasToken()     { return loadPref("token").length() > 0; }
 bool hasWifiCreds() { return loadPref("ssid").length() > 0; }
+bool hasUserId()    { return loadPref("userId").length() > 0; }
 
-bool hasPotId() { return loadPref("potId").length() > 0; }
-String getPotId() { return loadPref("potId"); }
+bool hasNodeToken() { return loadPref("nodeToken").length() > 0; }
+bool hasPotId()     { return loadPref("potId").length() > 0; }
 
+String getSsid()     { return loadPref("ssid"); }
+String getPass()     { return loadPref("pass"); }
+String getUserId()   { return loadPref("userId"); }
 
-String getToken() { return loadPref("token"); }
-String getSsid()  { return loadPref("ssid"); }
-String getPass()  { return loadPref("pass"); }
+String getNodeToken(){ return loadPref("nodeToken"); }
+String getPotId()    { return loadPref("potId"); }
 
-// ---------- TIME (NTP) ----------
+// =====================================
+// TIME (NTP)
+// =====================================
 bool initTimeWithNTP(unsigned long timeoutMs = 15000) {
   configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER_1, NTP_SERVER_2);
 
@@ -109,7 +127,6 @@ bool initTimeWithNTP(unsigned long timeoutMs = 15000) {
   unsigned long t0 = millis();
   time_t now = time(nullptr);
 
-  // 1700000000 ~ 2023+, kontrola "už je to reálný čas"
   while (now < 1700000000 && (millis() - t0) < timeoutMs) {
     delay(300);
     Serial.print(".");
@@ -139,7 +156,9 @@ String isoTimestampUtc() {
   return String(buf);
 }
 
-// ---------- HTML ----------
+// =====================================
+// HTML (PAIRING UI)
+// =====================================
 String htmlHeader(const String& title) {
   String s = "<!doctype html><html><head><meta charset='utf-8'>";
   s += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
@@ -155,27 +174,25 @@ String htmlFooter() { return "</body></html>"; }
 
 String htmlPairingPage(const String& msg = "") {
   String currentSsid = loadPref("ssid");
-  String currentPotId = loadPref("potId");
+  String currentUserId = loadPref("userId");
 
   String s = htmlHeader("Pairing");
   s += "<h1>🔧 Smart Garden – Pairing</h1>";
   s += "<div class='card'>";
   if (msg.length()) s += "<p><b>" + msg + "</b></p>";
 
-  s += "<p><small>Vyplň domácí Wi-Fi, Pot ID a node token. Po uložení se zařízení restartuje.</small></p>";
+  s += "<p><small>Vyplň domácí Wi-Fi a User ID. Po uložení se zařízení restartuje a samo si vyžádá token + potId z backendu.</small></p>";
 
   s += "<form method='POST' action='/save'>";
-  s += "<label>Pot ID</label>";
-  s += "<input name='potId' placeholder='UUID potu' value='" + currentPotId + "' required>";
+
+  s += "<label>User ID</label>";
+  s += "<input name='userId' placeholder='UUID uživatele' value='" + currentUserId + "' required>";
 
   s += "<label>Wi-Fi SSID</label>";
   s += "<input name='ssid' placeholder='např. O2-Internet-xxx' value='" + currentSsid + "' required>";
 
   s += "<label>Wi-Fi heslo</label>";
   s += "<input name='pass' type='password' placeholder='heslo k Wi-Fi'>";
-
-  s += "<label>Node token</label>";
-  s += "<input name='token' placeholder='Bearer token pro zařízení' required>";
 
   s += "<button type='submit'>Uložit a restartovat</button>";
   s += "</form>";
@@ -204,14 +221,21 @@ String htmlNormalPage() {
   s += " · Čas: " + String(timeIsValid() ? isoTimestampUtc() : String("NTP neplatný"));
   s += "</small></p>";
 
-  s += "<p>API: <a href='/api/measurements'>/api/measurements</a> · <a href='/api/raw'>/api/raw</a></p>";
+  s += "<p><small>";
+  s += "userId: " + getUserId();
+  s += "<br>nodeToken: " + String(hasNodeToken() ? "OK" : "chybí");
+  s += " · potId: " + String(hasPotId() ? "OK" : "chybí");
+  s += "</small></p>";
+
   s += "<p><a href='/pair'>Otevřít pairing</a></p>";
   s += "</div>";
   s += htmlFooter();
   return s;
 }
 
-// ---------- MODE SWITCH HELPERS ----------
+// =====================================
+// MODE SWITCH HELPERS
+// =====================================
 void stopServices() {
   server.stop();
   dnsServer.stop();
@@ -222,7 +246,9 @@ void sendCaptiveRedirect() {
   server.send(302, "text/plain", "Redirecting to captive portal");
 }
 
-// ---------- HTTP HANDLERS ----------
+// =====================================
+// HTTP HANDLERS
+// =====================================
 void handleRoot() {
   if (isPairingMode) server.send(200, "text/html; charset=utf-8", htmlPairingPage());
   else server.send(200, "text/html; charset=utf-8", htmlNormalPage());
@@ -232,38 +258,41 @@ void handlePairPage() {
   server.send(200, "text/html; charset=utf-8", htmlPairingPage());
 }
 
-void handleApiPct() {
-  int pct = readMoisturePercent();
-  server.send(200, "application/json; charset=utf-8", "{\"moisture_pct\":" + String(pct) + "}");
-}
-
-void handleApiRaw() {
-  int raw = readSoilRaw();
-  int pct = rawToPercent(raw);
-  server.send(200, "application/json; charset=utf-8",
-              "{\"raw\":" + String(raw) + ",\"moisture_pct\":" + String(pct) + "}");
-}
-
 void handleSave() {
-  String ssid  = server.arg("ssid");  ssid.trim();
-  String pass  = server.arg("pass");
-  String token = server.arg("token"); token.trim();
-  String potId = server.arg("potId"); potId.trim();
+  String ssid   = server.arg("ssid");   ssid.trim();
+  String pass   = server.arg("pass");
+  String userId = server.arg("userId"); userId.trim();
 
-  if (ssid.length() == 0 || token.length() == 0 || potId.length() == 0) {
-    server.send(400, "text/html; charset=utf-8", htmlPairingPage("Chybí SSID, token nebo potId."));
+  if (ssid.length() == 0 || userId.length() == 0) {
+    server.send(400, "text/html; charset=utf-8", htmlPairingPage("Chybí SSID nebo userId."));
     return;
   }
 
-  // Ukládáme do NVS (Preferences) pod konzistentními klíči:
-  savePref("potId", potId);
   savePref("ssid", ssid);
   savePref("pass", pass);
-  savePref("token", token);
+  savePref("userId", userId);
+
+  // když měníš userId/Wi-Fi, smaž staré provisioned údaje
+  savePref("nodeToken", "");
+  savePref("potId", "");
 
   server.send(200, "text/html; charset=utf-8",
               htmlHeader("Saved") +
               "<h1>Uloženo</h1><div class='card'><p>Konfigurace uložena. Restartuji…</p></div>" +
+              htmlFooter());
+
+  delay(1200);
+  ESP.restart();
+}
+
+void handleReset() {
+  prefs.begin("iot", false);
+  prefs.clear();
+  prefs.end();
+
+  server.send(200, "text/html; charset=utf-8",
+              htmlHeader("Reset") +
+              "<h1>🧹 Reset</h1><div class='card'><p>Smazáno. Restartuji…</p></div>" +
               htmlFooter());
 
   delay(1200);
@@ -277,7 +306,9 @@ void handleNotFound() {
   else server.send(404, "text/plain; charset=utf-8", "Not Found");
 }
 
-// ---------- WIFI ----------
+// =====================================
+// WIFI
+// =====================================
 bool connectWifiFromPrefs() {
   String ssid = getSsid();
   String pass = getPass();
@@ -317,8 +348,6 @@ void ensureWifiConnected() {
 
   if (WiFi.status() == WL_CONNECTED) {
     wifiDownSince = 0;
-
-    // občasný resync času
     if ((millis() - lastNtpSync) > NTP_RESYNC_MS) {
       initTimeWithNTP(8000);
     }
@@ -340,19 +369,160 @@ void ensureWifiConnected() {
   }
 }
 
-// ---------- TELEMETRY ----------
-bool sendTelemetryOnce() {
+// =====================================
+// SIMPLE JSON STRING EXTRACTOR
+// (for tiny responses like {"nodeToken":"...","potId":"..."})
+// =====================================
+String extractJsonString(const String& json, const String& key) {
+  String pattern = "\"" + key + "\":";
+  int i = json.indexOf(pattern);
+  if (i < 0) return "";
+  i += pattern.length();
+
+  // skip spaces
+  while (i < (int)json.length() && (json[i] == ' ')) i++;
+
+  if (i >= (int)json.length() || json[i] != '\"') return "";
+  i++; // after first quote
+
+  int j = json.indexOf('\"', i);
+  if (j < 0) return "";
+  return json.substring(i, j);
+}
+
+// =====================================
+// PROVISIONING (userId -> nodeToken + potId)
+// =====================================
+bool provisionFromBackend() {
   if (WiFi.status() != WL_CONNECTED) return false;
 
-  // --- SENSOR first (kalibrace/log) ---
-  int raw = readSoilRaw();
-  int pct = rawToPercent(raw);
-  Serial.printf("[SENSOR] raw=%d pct=%d (CAL_DRY=%d CAL_WET=%d)\n", raw, pct, CAL_DRY, CAL_WET);
+  String userId = getUserId();
+  if (userId.length() == 0) return false;
 
-  // Pokud teď kalibrujeme, klidně to tady můžeš dočasně ukončit:
-  //return true;
+  String url = String(API_BASE) + "/node"; // PUT /api/V1/node
 
-  // pokud není validní čas, zkus NTP ještě jednou a kdyžtak přeskoč
+  String deviceId = WiFi.macAddress();
+  deviceId.replace(":", "");
+
+  String body = "{";
+  body += "\"userId\":\"" + userId + "\",";
+  body += "\"deviceId\":\"" + deviceId + "\",";
+  body += "\"name\":\"SmartGarden-" + deviceId.substring(deviceId.length() - 4) + "\"";
+  body += "}";
+
+  WiFiClient client;
+  HTTPClient http;
+
+  http.begin(client, url);
+  http.addHeader("Content-Type", "application/json");
+
+  Serial.println("[PROVISION] PUT " + url);
+  Serial.println("[PROVISION] Body: " + body);
+
+  int code = http.sendRequest("PUT", (uint8_t*)body.c_str(), body.length());
+  Serial.print("[PROVISION] HTTP code: ");
+  Serial.println(code);
+
+  String resp = http.getString();
+  if (resp.length()) {
+    Serial.print("[PROVISION] Resp: ");
+    Serial.println(resp);
+  }
+
+  http.end();
+
+  if (code < 200 || code >= 300) return false;
+
+  // backend returns { nodeId, token }
+  String token = extractJsonString(resp, "token");
+  if (token.length() == 0) {
+    Serial.println("[PROVISION] Missing token in response");
+    return false;
+  }
+  savePref("nodeToken", token);
+  Serial.println("[PROVISION] Saved nodeToken");
+
+  String potId = extractJsonString(resp, "potId");
+  if (potId.length() == 0) {
+    Serial.println("[PROVISION] Missing potId in response");
+    return false;
+  }
+  savePref("potId", potId);
+  Serial.println("[PROVISION] Saved potId");
+
+  return true;
+
+}
+
+void ensureProvisioned() {
+  if (hasNodeToken() && hasPotId()) return;
+  if (!hasUserId()) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  unsigned long now = millis();
+  if (now - lastProvisionAttempt < PROVISION_RETRY_MS) return;
+  lastProvisionAttempt = now;
+
+  bool ok = provisionFromBackend();
+  Serial.println(ok ? "[PROVISION] OK" : "[PROVISION] FAIL");
+}
+
+// =====================================
+// HEARTBEAT (node-auth)
+// =====================================
+bool sendHeartbeatOnce() {
+  if (WiFi.status() != WL_CONNECTED) return false;
+  if (!hasNodeToken()) return false;
+
+  String token = getNodeToken();
+  if (token.length() == 0) return false;
+
+  String ts = isoTimestampUtc();
+  if (ts.length() == 0) return false;
+
+  String url = String(API_BASE) + String(ENDPOINT_HEARTBEAT);
+
+  long rssi = WiFi.RSSI();
+  unsigned long uptimeSec = millis() / 1000UL;
+
+  String body = "{";
+  body += "\"timestamp\":\"" + ts + "\",";
+  body += "\"uptimeSec\":" + String(uptimeSec) + ",";
+  body += "\"rssi\":" + String(rssi);
+  body += "}";
+
+  WiFiClient client;
+  HTTPClient http;
+
+  http.begin(client, url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", "Bearer " + token);
+
+  Serial.println("[HEARTBEAT] PUT " + url);
+
+  int code = http.sendRequest("PUT", (uint8_t*)body.c_str(), body.length());
+  Serial.print("[HEARTBEAT] HTTP code: ");
+  Serial.println(code);
+
+  http.end();
+  return (code >= 200 && code < 300);
+}
+
+// =====================================
+// TELEMETRY (requires potId + nodeToken)
+// =====================================
+bool sendTelemetryOnce() {
+  Serial.print("[TELEMETRY] potId: ");
+  Serial.println(getPotId());
+
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  if (!hasPotId() || !hasNodeToken()) {
+    Serial.println("[TELEMETRY] Missing potId/nodeToken -> skip");
+    return false;
+  }
+
+  // ensure time
   if (!timeIsValid()) {
     Serial.println("[TELEMETRY] Time invalid -> trying NTP sync");
     initTimeWithNTP(8000);
@@ -363,23 +533,20 @@ bool sendTelemetryOnce() {
   }
 
   String potId = getPotId();
-  if (potId.length() == 0) {
-    Serial.println("[TELEMETRY] Missing potId -> cannot send");
-    return false;
-  }
+  String token = getNodeToken();
+
+  int raw = readSoilRaw();
+  int pct = rawToPercent(raw);
+  Serial.printf("[SENSOR] raw=%d pct=%d (CAL_DRY=%d CAL_WET=%d)\n", raw, pct, CAL_DRY, CAL_WET);
 
   String url = String(API_BASE) + "/pot/" + potId + "/measurement";
-  String token = getToken();
 
   String ts = isoTimestampUtc();
   if (ts.length() == 0) return false;
 
-  // použijeme pct jako odesílanou hodnotu
-  int moisture = pct;
-
   String body = "{";
   body += "\"timestamp\":\"" + ts + "\",";
-  body += "\"value\":" + String(moisture) + ",";
+  body += "\"value\":" + String(pct) + ",";
   body += "\"type\":\"moisture\"";
   body += "}";
 
@@ -391,7 +558,6 @@ bool sendTelemetryOnce() {
   http.addHeader("Authorization", "Bearer " + token);
 
   Serial.println("[TELEMETRY] PUT " + url);
-  Serial.println("[TELEMETRY] Body: " + body);
 
   int code = http.sendRequest("PUT", (uint8_t*)body.c_str(), body.length());
   Serial.print("[TELEMETRY] HTTP code: ");
@@ -407,9 +573,9 @@ bool sendTelemetryOnce() {
   return (code >= 200 && code < 300);
 }
 
-
-
-// ---------- MODES ----------
+// =====================================
+// MODES
+// =====================================
 void startPairingMode() {
   stopServices();
   isPairingMode = true;
@@ -462,31 +628,23 @@ void startNormalMode() {
 
   server.on("/", handleRoot);
   server.on("/pair", handlePairPage);
-  server.on("/api/measurements", handleApiPct);
-  server.on("/api/raw", handleApiRaw);
+
+  // allow save/reset also in normal mode
+  server.on("/save", HTTP_POST, handleSave);
+  server.on("/reset", HTTP_POST, handleReset);
+
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("[HTTP] Server running on port 80 (normal)");
 
   lastSend = 0;
+  lastHeartbeat = 0;
+  lastProvisionAttempt = 0;
 }
 
-void handleReset() {
-  prefs.begin("iot", false);
-  prefs.clear();
-  prefs.end();
-
-  server.send(200, "text/html; charset=utf-8",
-              htmlHeader("Reset") +
-              "<h1>🧹 Reset</h1><div class='card'><p>Smazáno. Restartuji…</p></div>" +
-              htmlFooter());
-
-  delay(1200);
-  ESP.restart();
-}
-
-
-// ================== SETUP / LOOP ==================
+// =====================================
+// SETUP / LOOP
+// =====================================
 void setup() {
   Serial.begin(115200);
   delay(200);
@@ -495,7 +653,8 @@ void setup() {
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
 
-  if (!hasToken() || !hasWifiCreds() || !hasPotId()) startPairingMode();
+  // Pairing requires only Wi-Fi + userId
+  if (!hasUserId() || !hasWifiCreds()) startPairingMode();
   else startNormalMode();
 }
 
@@ -511,7 +670,21 @@ void loop() {
   ensureWifiConnected();
 
   unsigned long now = millis();
-  if (!isPairingMode && WiFi.status() == WL_CONNECTED) {
+
+  // 1) ensure we have nodeToken + potId
+  ensureProvisioned();
+
+  // 2) heartbeat (only if provisioned)
+  if (WiFi.status() == WL_CONNECTED && hasNodeToken()) {
+    if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
+      lastHeartbeat = now;
+      bool ok = sendHeartbeatOnce();
+      Serial.println(ok ? "[HEARTBEAT] OK" : "[HEARTBEAT] FAIL");
+    }
+  }
+
+  // 3) telemetry (only if provisioned)
+  if (WiFi.status() == WL_CONNECTED && hasNodeToken() && hasPotId()) {
     if (now - lastSend >= SEND_INTERVAL_MS) {
       lastSend = now;
       bool ok = sendTelemetryOnce();
@@ -520,5 +693,4 @@ void loop() {
   }
 
   delay(1);
-
 }

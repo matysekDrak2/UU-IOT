@@ -16,6 +16,17 @@ const nodeCreateSchema = {
   required: ["name"],
   additionalProperties: false
 };
+const heartbeatSchema = {
+  type: "object",
+  properties: {
+    timestamp: { type: "string", format: "date-time" },
+    uptimeSec: { type: "integer", minimum: 0 },
+    rssi: { type: "integer" }
+  },
+  required: ["timestamp", "uptimeSec"],
+  additionalProperties: false
+};
+
 
 const nodeUpdateSchema = {
   type: "object",
@@ -49,23 +60,61 @@ const nodeErrorSchema = {
   additionalProperties: false
 };
 
+router.put("/heartbeat", requireNodeAuth, validateSchema(heartbeatSchema), async (req, res) => {
+  const node = (req as any).node;
+
+  console.log("[HEARTBEAT]", {
+    nodeId: node?.id,
+    timestamp: req.body.timestamp,
+    uptimeSec: req.body.uptimeSec,
+    rssi: req.body.rssi
+  });
+
+  return res.status(204).send();
+});
 /**
  * PUT /api/V1/node
  * Device registration - returns node token
  */
 router.put("/", async (req, res) => {
+  const { userId, name } = req.body ?? {};
+
+  if (!userId || typeof userId !== "string") {
+    return res.status(400).json({ error: "InvalidInput", message: "userId is required" });
+  }
+
+  // ověř, že user existuje
+  const [users] = await dao.getPool().execute<any[]>(
+    "SELECT id FROM users WHERE id = ? LIMIT 1",
+    [userId]
+  );
+  if (!users || users.length === 0) {
+    return res.status(404).json({ error: "NotFound", message: "User not found" });
+  }
+
   const nodeId = randomUUID();
   const token = randomBytes(32).toString("hex"); // 64 hex
+  const nodeName = (typeof name === "string" && name.length >= 3) ? name : `node-${nodeId}`;
 
+  // vytvoř node a přiřaď userovi
   await dao.getPool().execute(
-    "INSERT INTO nodes (id, user_id, name, note, status, created_at) VALUES (?, NULL, ?, '', 'unknown', NOW())",
-    [nodeId, `node-${nodeId}`]
+    "INSERT INTO nodes (id, user_id, name, note, status, created_at) VALUES (?, ?, ?, '', 'unknown', NOW())",
+    [nodeId, userId, nodeName]
   );
 
+  // vytvoř node token
   await dao.createNodeToken(nodeId, token);
 
-  return res.status(201).json({ nodeId, token });
+  // default pot pro node (ať má ESP kam posílat)
+  const potId = randomUUID();
+  await dao.getPool().execute(
+    "INSERT INTO pots (id, node_id, name, note, status, reporting_time, created_at) VALUES (?, ?, ?, '', 'active', NULL, NOW())",
+    [potId, nodeId, "pot-1"]
+  );
+
+  return res.status(201).json({ nodeId, token, potId });
 });
+
 
 /**
  * POST /api/V1/node

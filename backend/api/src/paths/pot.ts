@@ -120,9 +120,14 @@ router.delete("/:potId", requireUserAuth, async (req, res) => {
 router.put("/:potId/measurement", requireNodeAuth, validateSchema(measurementSchema), async (req, res) => {
   const pot = await dao.getPot(req.params.potId);
   if (!pot) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+
   const node = (req as any).node;
   if (pot.node_id !== node.id) return res.status(404).json({ error: "NotFound", message: "Pot not owned by node" });
-  const m = await dao.createMeasurement(req.params.potId, req.body.timestamp, req.body.value, req.body.type);
+
+  // converting ISO to MySQL DATETIME string (UTC)
+  const mysqlTs = new Date(req.body.timestamp).toISOString().slice(0, 19).replace("T", " ");
+  const m = await dao.createMeasurement(req.params.potId, mysqlTs, req.body.value, req.body.type);
+
   if (!m) return res.status(500).json({ error: "CreationFailed", message: "Could not create measurement" });
   res.status(201).json(m);
 });
