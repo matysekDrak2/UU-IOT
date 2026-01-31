@@ -22,7 +22,7 @@ export type NodeStatus = "active" | "inactive" | "unknown";
 
 export type Node = {
   id: string;
-  userId: string;
+  userId?: string;
   name?: string;
   note?: string;
   status: NodeStatus;

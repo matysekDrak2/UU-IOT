@@ -3,20 +3,6 @@ import Modal from "../ui/Modal";
 
 type DurationUnit = "minutes" | "hours" | "days";
 
-type Payload = {
-  name: string;
-  note?: string;
-  /** ISO 8601 duration, e.g. PT15M / PT2H / P3D */
-  dataRange: string;
-};
-
-type Props = {
-  readonly open: boolean;
-  readonly onClose: () => void;
-  readonly onSubmit: (payload: Payload) => Promise<void> | void;
-  readonly initialName?: string;
-};
-
 function toIsoDuration(value: number, unit: DurationUnit): string {
   const v = Math.floor(value);
   if (!Number.isFinite(v) || v <= 0) return "";
@@ -31,7 +17,21 @@ function toIsoDuration(value: number, unit: DurationUnit): string {
   }
 }
 
-export default function PotCreateDialog({
+type Payload = {
+  name: string;
+  note?: string;
+  dataArchiving: string; // ISO 8601 duration (e.g. P30D)
+  status: "active" | "inactive";
+};
+
+type Props = {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onSubmit: (payload: Payload) => Promise<void> | void;
+  readonly initialName?: string;
+};
+
+export default function NodeCreateDialog({
   open,
   onClose,
   onSubmit,
@@ -39,51 +39,54 @@ export default function PotCreateDialog({
 }: Props) {
   const nameId = useId();
   const noteId = useId();
+  const statusId = useId();
   const unitId = useId();
   const valueId = useId();
 
   const [name, setName] = useState(initialName);
   const [note, setNote] = useState("");
 
-  // New: data range (user-friendly) -> ISO 8601 duration (internal)
-  const [rangeUnit, setRangeUnit] = useState<DurationUnit | "">("");
-  const [rangeValue, setRangeValue] = useState<string>("");
+  // dataArchiving builder: unit -> value -> ISO 8601 duration
+  const [archUnit, setArchUnit] = useState<DurationUnit | "">("");
+  const [archValue, setArchValue] = useState<string>("");
+
+  const [status, setStatus] = useState<"active" | "inactive">("active");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset when dialog opens
   useEffect(() => {
     if (!open) return;
     setName(initialName);
     setNote("");
-    setRangeUnit("");
-    setRangeValue("");
+    setArchUnit("");
+    setArchValue("");
+    setStatus("active");
     setError(null);
     setSubmitting(false);
   }, [open, initialName]);
 
-  const rangeNumber = useMemo(() => {
-    if (!rangeValue.trim()) return NaN;
-    return Number(rangeValue);
-  }, [rangeValue]);
+  const archNumber = useMemo(() => {
+    if (!archValue.trim()) return NaN;
+    return Number(archValue);
+  }, [archValue]);
 
-  const dataRangeIso = useMemo(() => {
-    if (!rangeUnit) return "";
-    if (!Number.isFinite(rangeNumber) || rangeNumber <= 0) return "";
-    return toIsoDuration(rangeNumber, rangeUnit);
-  }, [rangeNumber, rangeUnit]);
+  const dataArchiving = useMemo(() => {
+    if (!archUnit) return "";
+    if (!Number.isFinite(archNumber) || archNumber <= 0) return "";
+    return toIsoDuration(archNumber, archUnit);
+  }, [archNumber, archUnit]);
 
-  const isFormValid = useMemo(() => {
-    return !!name.trim() && !!dataRangeIso && !submitting;
-  }, [name, dataRangeIso, submitting]);
+  const canSubmit = useMemo(() => {
+    return !!name.trim() && !!dataArchiving && !submitting;
+  }, [name, dataArchiving, submitting]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (!dataRangeIso) return;
+    if (!dataArchiving) return;
 
     setSubmitting(true);
     setError(null);
@@ -92,11 +95,12 @@ export default function PotCreateDialog({
       await onSubmit({
         name: trimmed,
         note: note.trim() ? note.trim() : undefined,
-        dataRange: dataRangeIso,
+        dataArchiving,
+        status,
       });
       onClose();
     } catch (err: any) {
-      setError(err?.message ?? "Failed to create pot");
+      setError(err?.message ?? "Failed to create node");
     } finally {
       setSubmitting(false);
     }
@@ -105,7 +109,7 @@ export default function PotCreateDialog({
   return (
     <Modal
       open={open}
-      title="Create new pot"
+      title="Create new node"
       onClose={onClose}
       footer={
         <>
@@ -121,8 +125,8 @@ export default function PotCreateDialog({
           <button
             type="submit"
             className="btn btn-primary"
-            form="pot-create-form"
-            disabled={!isFormValid}
+            form="node-create-form"
+            disabled={!canSubmit}
           >
             {submitting ? "Creating…" : "Create"}
           </button>
@@ -137,7 +141,7 @@ export default function PotCreateDialog({
       )}
 
       <form
-        id="pot-create-form"
+        id="node-create-form"
         onSubmit={handleSubmit}
         className="create_form"
       >
@@ -150,28 +154,54 @@ export default function PotCreateDialog({
             className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Basil"
+            placeholder="e.g. Garden Node"
             autoFocus
             disabled={submitting}
           />
         </div>
 
-        {/* New: Data range builder (unit -> value) */}
+        <div className="field">
+          <label htmlFor={noteId} className="field-label">
+            Note (optional):
+          </label>
+          <input
+            id={noteId}
+            className="input"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Backyard sensors"
+            disabled={submitting}
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor={statusId} className="field-label">
+            Status:
+          </label>
+          <select
+            id={statusId}
+            className="input"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "active" | "inactive")}
+            disabled={submitting}
+          >
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+
         <div className="field">
           <label htmlFor={unitId} className="field-label">
-            Show data for the last:
+            Data archiving:
           </label>
-
           <select
             id={unitId}
             className="input"
-            value={rangeUnit}
+            value={archUnit}
             onChange={(e) => {
               const next = e.target.value as DurationUnit | "";
-              setRangeUnit(next);
-              setRangeValue(""); // reset value when unit changes
-              // Optionally focus the value input after selecting unit
-              // setTimeout(() => document.getElementById(valueId)?.focus(), 0);
+              setArchUnit(next);
+              setArchValue("");
             }}
             disabled={submitting}
           >
@@ -182,7 +212,7 @@ export default function PotCreateDialog({
           </select>
         </div>
 
-        {rangeUnit && (
+        {archUnit && (
           <div className="field">
             <label htmlFor={valueId} className="field-label">
               Value:
@@ -194,33 +224,19 @@ export default function PotCreateDialog({
               inputMode="numeric"
               min={1}
               step={1}
-              value={rangeValue}
-              onChange={(e) => setRangeValue(e.target.value)}
+              value={archValue}
+              onChange={(e) => setArchValue(e.target.value)}
               placeholder={
-                rangeUnit === "minutes"
-                  ? "e.g. 15"
-                  : rangeUnit === "hours"
-                    ? "e.g. 2"
-                    : "e.g. 3"
+                archUnit === "minutes"
+                  ? "e.g. 30"
+                  : archUnit === "hours"
+                    ? "e.g. 12"
+                    : "e.g. 30"
               }
               disabled={submitting}
             />
           </div>
         )}
-
-        <div className="field">
-          <label htmlFor={noteId} className="field-label">
-            Note (optional):
-          </label>
-          <input
-            id={noteId}
-            className="input"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Kitchen window"
-            disabled={submitting}
-          />
-        </div>
       </form>
     </Modal>
   );
