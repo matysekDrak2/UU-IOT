@@ -12,7 +12,7 @@ COPY ./api/src ./api/src
 
 WORKDIR /app/api
 
-RUN npm install #ci --production=false
+RUN npm ci
 
 # build TS
 RUN npm run build
