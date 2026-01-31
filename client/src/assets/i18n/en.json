@@ -53,11 +53,13 @@
     "error": "Error",
     "loading": "Loading",
     "try_again": "Try again",
-    "soil_moisture_low": "Soil moisture in “{{node}}” below normal",
-    "soil_moisture_high": "Soil moisture in “{{node}}” above normal",
+    "soil_moisture_low": "Soil moisture in \"{{node}}\" below normal",
+    "soil_moisture_high": "Soil moisture in \"{{node}}\" above normal",
     "failed_load_profile": "Failed to load profile",
     "failed_load_node_det": "Failed to load node details",
-    "unable_load": "Unable to load data"
+    "unable_load": "Unable to load data",
+    "invalid_credentials": "Invalid email or password",
+    "email_already_used": "This email is already registered"
   },
   "NODE": {
     "node": "Node",
@@ -79,5 +81,21 @@
     "smart_garden": "SmartGarden",
     "new_node": "New node",
     "edit_node": "Edit node"
+  },
+  "AUTH": {
+    "login_title": "Login to SmartGarden",
+    "register_title": "Create your account",
+    "no_account": "Don't have an account?",
+    "has_account": "Already have an account?",
+    "confirm_password": "Confirm password"
+  },
+  "VALIDATION": {
+    "email_required": "Email is required",
+    "email_invalid": "Please enter a valid email",
+    "password_required": "Password is required",
+    "password_min_length": "Password must be at least 8 characters",
+    "password_mismatch": "Passwords do not match",
+    "username_required": "Username is required",
+    "username_length": "Username must be 3-30 characters"
   }
 }

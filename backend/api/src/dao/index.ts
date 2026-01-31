@@ -40,7 +40,7 @@ export async function checkDbConnection() {
 
 // Trigger the check on module import (startup)
 checkDbConnection().catch((err) => {
-  throw Error("Database connection: FAILED" + err && err.message ? err.message : err);
+  throw Error("Database connection: FAILED - " + (err && err.message ? err.message : err));
 });
 
 // DAO helpers (concise implementations)
@@ -72,10 +72,12 @@ export async function findUserByEmail(email: string) {
 
 export async function storeUserToken(userId: string, token: string, expiresAt: string) {
   const id = randomUUID();
+  // Convert ISO string to MySQL datetime format
+  const mysqlDatetime = expiresAt.replace("T", " ").replace("Z", "").split(".")[0];
   try {
     const result = await getPool().execute(
       "INSERT INTO tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)",
-      [id, userId, token, expiresAt]
+      [id, userId, token, mysqlDatetime]
     );
     const header = result[0] as mysql.ResultSetHeader;
     if (!header || typeof header.affectedRows !== "number" || header.affectedRows !== 1) {
@@ -83,6 +85,7 @@ export async function storeUserToken(userId: string, token: string, expiresAt: s
     }
     return { id, userId, token, expiresAt };
   } catch (e) {
+    console.error("storeUserToken error:", e);
     return null;
   }
 }
