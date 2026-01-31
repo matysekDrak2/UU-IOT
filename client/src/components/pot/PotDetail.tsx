@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Pot, Measurement } from "../../api/types";
 import { getPot } from "../../api/enpoints/pot";
 import { listMeasurements } from "../../api/enpoints/measurement";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -27,6 +27,10 @@ function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
+function formatDateInput(d: Date) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
 function parseDateInput(value: string): Date | null {
   if (!value) return null;
   const d = new Date(`${value}T00:00:00`);
@@ -35,8 +39,22 @@ function parseDateInput(value: string): Date | null {
 
 function startOfWeekMonday(d: Date) {
   const x = new Date(d);
-  const day = (x.getDay() + 6) % 7;
+  const day = (x.getDay() + 6) % 7; // Mon=0 ... Sun=6
   x.setDate(x.getDate() - day);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function startOfMonth(d: Date) {
+  const x = new Date(d);
+  x.setDate(1);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfMonth(d: Date) {
+  const x = new Date(d);
+  x.setMonth(x.getMonth() + 1, 0); // last day of current month
   x.setHours(0, 0, 0, 0);
   return x;
 }
@@ -47,6 +65,34 @@ function sameLocalDay(a: Date, b: Date) {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
+}
+
+function clampOrder(a: string, b: string) {
+  const da = parseDateInput(a);
+  const db = parseDateInput(b);
+  if (!da || !db) return { from: a, to: b };
+  return da.getTime() <= db.getTime() ? { from: a, to: b } : { from: b, to: a };
+}
+
+function rangeForPeriod(period: "day" | "week" | "month", anchor: Date) {
+  if (period === "day") {
+    const d = new Date(anchor);
+    d.setHours(0, 0, 0, 0);
+    const s = formatDateInput(d);
+    return { from: s, to: s };
+  }
+
+  if (period === "week") {
+    const mon = startOfWeekMonday(anchor);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    sun.setHours(0, 0, 0, 0);
+    return { from: formatDateInput(mon), to: formatDateInput(sun) };
+  }
+
+  const from = startOfMonth(anchor);
+  const to = endOfMonth(anchor);
+  return { from: formatDateInput(from), to: formatDateInput(to) };
 }
 
 type ChartPoint = { label: string; value: number | null };
@@ -108,6 +154,7 @@ function buildChartData(
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(mon);
       d.setDate(mon.getDate() + i);
+      d.setHours(0, 0, 0, 0);
 
       const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
       const vals = byDay[key];
@@ -125,37 +172,38 @@ function buildChartData(
     });
   }
 
-  {
-    const year = anchor.getFullYear();
-    const month = anchor.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // month
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const byDayOfMonth: Record<number, number[]> = {};
-    for (const { t, v } of ms) {
-      if (t.getFullYear() === year && t.getMonth() === month) {
-        const day = t.getDate();
-        (byDayOfMonth[day] ??= []).push(v);
-      }
+  const byDayOfMonth: Record<number, number[]> = {};
+  for (const { t, v } of ms) {
+    if (t.getFullYear() === year && t.getMonth() === month) {
+      const day = t.getDate();
+      (byDayOfMonth[day] ??= []).push(v);
     }
-
-    return Array.from({ length: daysInMonth }, (_, idx) => {
-      const day = idx + 1;
-      const vals = byDayOfMonth[day];
-      const avg =
-        vals && vals.length
-          ? vals.reduce((a, b) => a + b, 0) / vals.length
-          : null;
-
-      return {
-        label: String(day),
-        value: avg ? Number(avg.toFixed(2)) : null,
-      };
-    });
   }
+
+  return Array.from({ length: daysInMonth }, (_, idx) => {
+    const day = idx + 1;
+    const vals = byDayOfMonth[day];
+    const avg =
+      vals && vals.length
+        ? vals.reduce((a, b) => a + b, 0) / vals.length
+        : null;
+
+    return {
+      label: String(day),
+      value: avg ? Number(avg.toFixed(2)) : null,
+    };
+  });
 }
 
 export default function PotDetail({ potId: potIdProp, onBack }: Props) {
   const { potId } = useParams<{ potId: string }>();
+  const navigate = useNavigate();
+
   const [pot, setPot] = useState<Pot | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,6 +232,7 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
           setPot(potData);
           setMeasurements(normalized);
 
+          // Initialize dates from measurement bounds (if empty)
           if (!fromDate || !toDate) {
             const times = normalized
               .map((m) => new Date(m.timestamp).getTime())
@@ -193,11 +242,22 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
             if (times.length) {
               const min = new Date(times[0]);
               const max = new Date(times[times.length - 1]);
-              const minStr = `${min.getFullYear()}-${pad2(min.getMonth() + 1)}-${pad2(min.getDate())}`;
-              const maxStr = `${max.getFullYear()}-${pad2(max.getMonth() + 1)}-${pad2(max.getDate())}`;
-              setFromDate((prev) => prev || minStr);
-              setToDate((prev) => prev || maxStr);
+              const minStr = formatDateInput(min);
+              const maxStr = formatDateInput(max);
+
+              // Use previous if already set, otherwise bounds
+              const initFrom = fromDate || minStr;
+              const initTo = toDate || maxStr;
+              const ordered = clampOrder(initFrom, initTo);
+
+              setFromDate(ordered.from);
+              setToDate(ordered.to);
             }
+          } else {
+            // Ensure order if both already present
+            const ordered = clampOrder(fromDate, toDate);
+            if (ordered.from !== fromDate) setFromDate(ordered.from);
+            if (ordered.to !== toDate) setToDate(ordered.to);
           }
         }
       } catch (e: any) {
@@ -216,6 +276,60 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
     };
   }, [potId]);
 
+  // Keep from/to consistent when switching period
+  useEffect(() => {
+    const anchor =
+      parseDateInput(fromDate) ?? parseDateInput(toDate) ?? new Date();
+
+    const r = rangeForPeriod(period, anchor);
+    const ordered = clampOrder(r.from, r.to);
+
+    setFromDate(ordered.from);
+    setToDate(ordered.to);
+  }, [period]);
+
+  // Also prevent manual "from > to" in week/month if user edits inputs
+  useEffect(() => {
+    if (period === "day") return;
+    const a = parseDateInput(fromDate);
+    const b = parseDateInput(toDate);
+    if (!a || !b) return;
+    if (a.getTime() > b.getTime()) {
+      // swap
+      setFromDate(toDate);
+      setToDate(fromDate);
+    }
+  }, [fromDate, toDate, period]);
+
+  // --- arrows navigation (day/week/month) ---
+  function shiftRange(deltaDays: number, deltaMonths: number) {
+    const anchor =
+      parseDateInput(fromDate) ?? parseDateInput(toDate) ?? new Date();
+
+    const n = new Date(anchor);
+    if (deltaMonths !== 0) n.setMonth(n.getMonth() + deltaMonths);
+    else n.setDate(n.getDate() + deltaDays);
+
+    const r = rangeForPeriod(period, n);
+    const ordered = clampOrder(r.from, r.to);
+
+    setFromDate(ordered.from);
+    setToDate(ordered.to);
+  }
+
+  function onPrev() {
+    if (period === "day") shiftRange(-1, 0);
+    if (period === "week") shiftRange(-7, 0);
+    if (period === "month") shiftRange(0, -1);
+  }
+
+  function onNext() {
+    if (period === "day") shiftRange(1, 0);
+    if (period === "week") shiftRange(7, 0);
+    if (period === "month") shiftRange(0, 1);
+  }
+  // --- END arrows navigation ---
+
   const chartData = useMemo(
     () => buildChartData(measurements, period, fromDate, toDate),
     [measurements, period, fromDate, toDate],
@@ -227,7 +341,13 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
 
   return (
     <div className="page" id="pot_detail_page">
-      <button className="btn btn-secondary" onClick={onBack}>
+      <button
+        className="btn btn-secondary"
+        onClick={() => {
+          onBack?.();
+          navigate("/pots");
+        }}
+      >
         ← Back
       </button>
 
@@ -243,25 +363,39 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
             display: "flex",
             gap: 12,
             flexWrap: "wrap",
+            alignItems: "flex-end",
           }}
         >
-          <div>
-            <label style={{ display: "block" }}>From</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
-          </div>
+          {period === "day" ? (
+            <div>
+              <label style={{ display: "block" }}>Date</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label style={{ display: "block" }}>From</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+              </div>
 
-          <div>
-            <label style={{ display: "block" }}>To</label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
-          </div>
+              <div>
+                <label style={{ display: "block" }}>To</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <label style={{ display: "block" }}>Period</label>
@@ -273,6 +407,25 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
               <option value="week">Week</option>
               <option value="month">Month</option>
             </select>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onPrev}
+              aria-label="Previous"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onNext}
+              aria-label="Next"
+            >
+              →
+            </button>
           </div>
         </div>
 
