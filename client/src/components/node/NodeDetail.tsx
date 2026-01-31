@@ -90,8 +90,12 @@ export default function NodeDetail({ onBack }: Props) {
 
       <div className="card">
         <h2 className="card-title">{t("NODE.device_info")}</h2>
-        <div>ID: {node.id}</div>
-        <button onClick={copyNodeId}>{copied ? "Copied" : "Copy"}</button>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div>ID: {node.id}</div>
+          <button onClick={copyNodeId} className={"btn-secondary"}>
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
         <div>Status: {node.status}</div>
         <div>Data archiving: {node.dataArchiving}</div>
         <div>Note: {node.note ?? "—"}</div>

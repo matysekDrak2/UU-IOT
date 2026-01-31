@@ -39,10 +39,11 @@
   border-radius: 10%;
   border: 1px solid var(--color-bg-box);
   background-color: var(--color-selected);
+  align-items: center;
 }
 
 #btn-action.btn-secondary {
-  min-width: auto;
+  min-width: 35px;
   border-radius: 10px;
 }
 
@@ -80,6 +81,8 @@
   width: 100%;
   flex: 1;
   padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 20px;
 }
 
 .page {
@@ -109,8 +112,10 @@
   width: 100%;
 }
 
+select,
 .select,
-.input {
+.input,
+input[type="date" i] {
   font-size: 15px;
   padding: 5px;
   border-radius: 8px;
@@ -185,7 +190,7 @@ dialog::backdrop {
 }
 
 .modal {
-  width: 100%;
+  width: 55vw;
   border-radius: 12px;
   border: none;
 }
@@ -215,8 +220,8 @@ dialog::backdrop {
   padding: 16px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
+  justify-content: space-around;
 }
 
 .list {
@@ -354,7 +359,8 @@ dialog::backdrop {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
+  width: min-content;
+  min-width: 100px;
   padding: 12px;
   font-size: 16px;
   font-weight: 600;
