@@ -10,8 +10,8 @@ router.use("/user", userRouter);
 import nodeRouter from "./paths/node";
 router.use("/node", nodeRouter);
 
-/* Pot router at root (contains /node/:nodeId/pot and /pot/:potId...) */
+/* Pot router under /pot */
 import potRouter from "./paths/pot";
-router.use("/", potRouter);
+router.use("/pot", potRouter);
 
 export default router;

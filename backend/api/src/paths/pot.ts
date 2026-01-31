@@ -4,6 +4,19 @@ import { validateSchema, requireUserAuth, requireNodeAuth } from "../lib/middlew
 
 const router = express.Router();
 
+const potCreateSchema = {
+  type: "object",
+  properties: {
+    nodeId: { type: "string", format: "uuid" },
+    name: { type: "string", maxLength: 50, minLength: 3 },
+    note: { type: "string", maxLength: 200 },
+    status: { type: "string", enum: ["active", "inactive", "unknown"] },
+    reportingTime: { type: "string" }
+  },
+  required: ["nodeId", "name"],
+  additionalProperties: false
+};
+
 const potUpdateSchema = {
   type: "object",
   properties: {
@@ -26,6 +39,24 @@ const measurementSchema = {
   additionalProperties: false
 };
 
+
+// create pot
+router.post("/", requireUserAuth, validateSchema(potCreateSchema), async (req, res) => {
+  const user = (req as any).user;
+  const { nodeId, name, note, status, reportingTime } = req.body;
+
+  const node = await dao.findNodeById(nodeId);
+  if (!node || node.user_id !== user.id) {
+    return res.status(404).json({ error: "NotFound", message: "Node not found" });
+  }
+
+  const pot = await dao.createPot(nodeId, name, note || null, status || "unknown", reportingTime || null);
+  if (!pot) {
+    return res.status(500).json({ error: "CreationFailed", message: "Could not create pot" });
+  }
+
+  return res.status(201).json(pot);
+});
 
 // get pot
 router.get("/:potId", requireUserAuth, async (req, res) => {

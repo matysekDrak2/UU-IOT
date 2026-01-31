@@ -70,7 +70,12 @@ router.put("/", validateSchema(userCreateSchema), async (req, res) => {
 router.post("/", validateSchema(userLoginSchema), async (req, res) => {
   const { email, password } = req.body;
   const user = await dao.findUserByEmail(email);
-  if (!user || !crypto.timingSafeEqual(user.password_hash, password)) return res.status(401).json({ error: "AuthenticationFailed", message: "Invalid credentials" });
+  if (!user) return res.status(401).json({ error: "AuthenticationFailed", message: "Invalid credentials" });
+  const storedHash = Buffer.from(user.password_hash, "utf8");
+  const providedHash = Buffer.from(password, "utf8");
+  if (storedHash.length !== providedHash.length || !crypto.timingSafeEqual(storedHash, providedHash)) {
+    return res.status(401).json({ error: "AuthenticationFailed", message: "Invalid credentials" });
+  }
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
   await dao.storeUserToken(user.id, token, expiresAt);
