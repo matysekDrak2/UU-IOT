@@ -14,7 +14,7 @@ const char* API_BASE = "http://10.0.0.245:8080/api/V1";
 
 // Endpoints, které si ESP volá (musí existovat na backendu)
 const char* ENDPOINT_REGISTER  = "/node";   // PUT (bez auth), body: { userId, deviceId, name }
-const char* ENDPOINT_HEARTBEAT = "/node/heartbeat";  // PUT  (node-auth), body: { timestamp, uptimeSec, rssi }
+const char* ENDPOINT_HEARTBEAT = "/node/heartbeat";  // POST (node-auth), body: { timestamp, uptimeSec, rssi }
 
 // =====================================
 // TIME (NTP)
@@ -414,12 +414,18 @@ bool provisionFromBackend() {
   HTTPClient http;
 
   http.begin(client, url);
+  http.setTimeout(15000);
   http.addHeader("Content-Type", "application/json");
 
   Serial.println("[PROVISION] PUT " + url);
   Serial.println("[PROVISION] Body: " + body);
 
   int code = http.sendRequest("PUT", (uint8_t*)body.c_str(), body.length());
+  if (code < 0) {
+  Serial.printf("[PROVISION] HTTP error: %s\n", http.errorToString(code).c_str());
+  }
+
+
   Serial.print("[PROVISION] HTTP code: ");
   Serial.println(code);
 
@@ -495,18 +501,26 @@ bool sendHeartbeatOnce() {
   HTTPClient http;
 
   http.begin(client, url);
+  http.setTimeout(15000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
 
-  Serial.println("[HEARTBEAT] PUT " + url);
+  Serial.println("[HEARTBEAT] POST " + url);
 
-  int code = http.sendRequest("PUT", (uint8_t*)body.c_str(), body.length());
+  int code = http.sendRequest("POST", (uint8_t*)body.c_str(), body.length());
   Serial.print("[HEARTBEAT] HTTP code: ");
   Serial.println(code);
+
+  String resp = http.getString();
+  if (resp.length()) {
+    Serial.print("[HEARTBEAT] Resp: ");
+    Serial.println(resp);
+  }
 
   http.end();
   return (code >= 200 && code < 300);
 }
+
 
 // =====================================
 // TELEMETRY (requires potId + nodeToken)
