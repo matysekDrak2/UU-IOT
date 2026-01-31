@@ -1,5 +1,5 @@
 import { api } from "../client";
-import type { Pot, PotUpdate } from "../types";
+import type { Pot, PotUpdate, PotCreate } from "../types";
 
 // GET /node/{nodeId}/pot — list
 export function listPotsByNode(nodeId: string) {
@@ -9,6 +9,11 @@ export function listPotsByNode(nodeId: string) {
 // GET /pot/{potId}
 export function getPot(potId: string) {
   return api<Pot>(`/pot/${potId}`, { method: "GET" });
+}
+
+// POST /pot — create
+export async function createPot(payload: PotCreate): Promise<Pot> {
+  return api<Pot>("/pot", { method: "POST", body: payload });
 }
 
 // PATCH /pot/{potId}

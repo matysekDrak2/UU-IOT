@@ -181,6 +181,22 @@ router.get("/:nodeId/pot", requireUserAuth, async (req, res) => {
   return res.json(pots);
 });
 
+/**
+ * GET /api/V1/node/:nodeId/pot
+ * List pots under node (user-auth)
+ */
+router.get("/:nodeId/pot", requireUserAuth, async (req, res) => {
+  const user = (req as any).user;
+  const { nodeId } = req.params;
+
+  const node = await dao.findNodeById(nodeId);
+  if (!node || node.user_id !== user.id) {
+    return res.status(404).json({ error: "NotFound", message: "Node not found" });
+  }
+
+  const pots = await dao.listPotsByNode(nodeId);
+  return res.json(pots);
+});
 
 
 /**

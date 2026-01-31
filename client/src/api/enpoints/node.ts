@@ -15,7 +15,6 @@ export async function listNodes(): Promise<Node[]> {
   const raw = await api<unknown>("/node", { method: "GET" });
   return asArray<Node>(raw);
 }
-
 // POST /node — register
 export async function createNode(payload: NodeCreate): Promise<Node> {
   return api<Node>("/node", { method: "POST", body: payload });

@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useMemo, useState } from "react";
 import type { Node, Pot } from "../../api/types";
 import { listNodes } from "../../api/enpoints/node";
-import { listPotsByNode } from "../../api/enpoints/pot";
+import { listPotsByNode, createPot } from "../../api/enpoints/pot";
 import PotDetail from "../pot/PotDetail";
 import PotCreateDialog from "../pot/PotCreateDialog";
 import PotCard from "../pot/PotCard";
@@ -108,16 +108,30 @@ export default function PotsPage() {
   }, [pots, search]);
 
   async function handleCreatePot(payload: { name: string; note?: string }) {
-    const newPot: Pot = {
-      id: crypto.randomUUID(),
-      nodeId: selectedNodeId as string,
-      name: payload.name,
-      note: payload.note ?? "",
-      status: "unknown",
-    };
-
-    setPots((prev) => [newPot, ...prev]);
+    if (!selectedNodeId) return;
+  
+    setLoadingPots(true);
+    setError(null);
+  
+    try {
+      await createPot({
+        nodeId: selectedNodeId,
+        name: payload.name,
+        note: payload.note ?? "",
+        status: "unknown",
+      });
+  
+      // po uložení reload z backendu
+      const data = await listPotsByNode(selectedNodeId);
+      setPots(safeArray<Pot>(data));
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to create pot");
+    } finally {
+      setLoadingPots(false);
+      setCreateOpen(false);
+    }
   }
+  
 
   if (selectedPotId !== null) {
     return (

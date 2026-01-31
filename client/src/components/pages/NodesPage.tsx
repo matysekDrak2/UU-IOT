@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { listNodes } from "../../api/enpoints/node";
+import { listNodes, createNode } from "../../api/enpoints/node";
 import type { Node } from "../../api/types";
 import NodeCard from "../node/NodeCard";
 import NodeDetailPage from "../node/NodeDetail";
@@ -29,6 +29,24 @@ export default function NodesPage() {
       setLoading(false);
     }
   }
+
+  async function handleAddNode() {
+    const name = window.prompt("Node name (min 3 chars):", "SmartGarden");
+    if (!name) return;
+  
+    setLoading(true);
+    setError(null);
+  
+    try {
+      await createNode({ name }); // NodeCreate má minimálně name
+      await load();
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to create node");
+    } finally {
+      setLoading(false);
+    }
+  }
+  
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +117,10 @@ export default function NodesPage() {
             {loading ? "Refreshing…" : "Refresh"}
           </button>
 
-          <button className="btn btn-secondary">Add new node</button>
+          <button className="btn btn-secondary" onClick={handleAddNode} disabled={loading}>
+            Add new node
+          </button>
+
         </div>
       </div>
 
