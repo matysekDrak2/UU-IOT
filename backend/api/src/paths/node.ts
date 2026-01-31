@@ -60,18 +60,7 @@ const nodeErrorSchema = {
   additionalProperties: false
 };
 
-router.put("/heartbeat", requireNodeAuth, validateSchema(heartbeatSchema), async (req, res) => {
-  const node = (req as any).node;
 
-  console.log("[HEARTBEAT]", {
-    nodeId: node?.id,
-    timestamp: req.body.timestamp,
-    uptimeSec: req.body.uptimeSec,
-    rssi: req.body.rssi
-  });
-
-  return res.status(204).send();
-});
 /**
  * PUT /api/V1/node
  * Device registration - returns node token
@@ -236,16 +225,19 @@ router.delete("/:nodeId", requireUserAuth, async (req, res) => {
 /**
  * POST /api/V1/node/:nodeId/heartbeat
  */
-router.post("/:nodeId/heartbeat", requireNodeAuth, async (req, res) => {
+router.post("/heartbeat", requireNodeAuth, validateSchema(heartbeatSchema), async (req, res) => {
   const node = (req as any).node;
 
-  if (!node || node.id !== req.params.nodeId) {
-    return res.status(404).json({ error: "NotFound", message: "Node not found" });
-  }
+  console.log("[HEARTBEAT]", {
+    nodeId: node?.id,
+    timestamp: req.body.timestamp,
+    uptimeSec: req.body.uptimeSec,
+    rssi: req.body.rssi
+  });
 
-  const pots = await dao.listPotsByNode(node.id);
-  return res.json({ node, pots });
+  return res.status(204).send();
 });
+
 
 /**
  * POST /api/V1/node/:nodeId/error
