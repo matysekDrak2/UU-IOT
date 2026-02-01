@@ -9,6 +9,7 @@ services:
       - DATABASE_URL=mysql://user:password@db:3306/mydatabase
     networks:
       - internal
+      - cloudflare
     depends_on:
       db:
         condition: service_healthy
@@ -43,6 +44,8 @@ networks:
   internal:
     name: backend_internal_network
     external: false
+  cloudflare:
+    external: true
 
 volumes:
   smart_garden_db_data:

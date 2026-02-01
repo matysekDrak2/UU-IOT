@@ -97,15 +97,15 @@ router.put("/", validateSchema(deviceRegisterSchema), async (req, res) => {
 
 /**
  * GET /api/V1/node
- * List nodes for user
+ * List nodes for user with pot counts
  */
 router.get("/", requireUserAuth, async (req, res) => {
   const user = (req as any).user;
 
-  const [rows] = await dao.getPool().execute<any[]>(
-    "SELECT * FROM nodes WHERE user_id = ?",
-    [user.id]
-  );
+  const rows = await dao.listNodesWithStats(user.id);
+  if (rows === null) {
+    return res.status(500).json({ error: "ReadFailed", message: "Could not list nodes" });
+  }
 
   return res.json(rows);
 });
@@ -125,8 +125,29 @@ router.get("/error", requireUserAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/V1/node/:nodeId/warning
+ * List active warnings for all pots under a node
+ */
+router.get("/:nodeId/warning", requireUserAuth, async (req, res) => {
+  const user = (req as any).user;
+  const { nodeId } = req.params;
+
+  const node = await dao.findNodeById(nodeId);
+  if (!node || node.user_id !== user.id) {
+    return res.status(404).json({ error: "NotFound", message: "Node not found" });
+  }
+
+  const warnings = await dao.listActiveWarningsByNode(nodeId);
+  if (warnings === null) {
+    return res.status(500).json({ error: "ReadFailed", message: "Could not list warnings" });
+  }
+
+  return res.json(warnings);
+});
+
+/**
  * GET /api/V1/node/:nodeId/pot
- * List pots for a specific node
+ * List pots for a specific node with latest measurement
  */
 router.get("/:nodeId/pot", requireUserAuth, async (req, res) => {
   const user = (req as any).user;
@@ -137,7 +158,10 @@ router.get("/:nodeId/pot", requireUserAuth, async (req, res) => {
     return res.status(404).json({ error: "NotFound", message: "Node not found" });
   }
 
-  const pots = await dao.listPotsByNode(nodeId);
+  const pots = await dao.listPotsWithLatestMeasurement(nodeId);
+  if (pots === null) {
+    return res.status(500).json({ error: "ReadFailed", message: "Could not list pots" });
+  }
   return res.json(pots);
 });
 

@@ -1,15 +1,21 @@
 import React, { useEffect, useId, useMemo, useState } from "react";
 import Modal from "../ui/Modal";
-import type { Pot, PotUpdate } from "../../api/types";
+import type { Pot, PotUpdate, Thresholds, Threshold } from "../../api/types";
 import { useTranslation } from "react-i18next";
 
 type DurationUnit = "minutes" | "hours" | "days";
+
+type ThresholdState = {
+  min: string;
+  max: string;
+};
 
 type Props = {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly onSave: (payload: PotUpdate) => Promise<void> | void;
   readonly pot: Pot;
+  readonly availableTypes?: string[];
 };
 
 function toIsoDuration(value: number, unit: DurationUnit): string {
@@ -42,11 +48,39 @@ function parseIsoDuration(iso: string | undefined): { unit: DurationUnit | ""; v
   return { unit: "", value: "" };
 }
 
+function parseThresholds(thresholds: Thresholds | undefined, types: string[]): Record<string, ThresholdState> {
+  const result: Record<string, ThresholdState> = {};
+  for (const type of types) {
+    const t = thresholds?.[type];
+    result[type] = {
+      min: t?.min !== undefined ? String(t.min) : "",
+      max: t?.max !== undefined ? String(t.max) : "",
+    };
+  }
+  return result;
+}
+
+function buildThresholds(state: Record<string, ThresholdState>): Thresholds {
+  const result: Thresholds = {};
+  for (const [type, { min, max }] of Object.entries(state)) {
+    const threshold: Threshold = {};
+    const minNum = parseFloat(min);
+    const maxNum = parseFloat(max);
+    if (!isNaN(minNum)) threshold.min = minNum;
+    if (!isNaN(maxNum)) threshold.max = maxNum;
+    if (threshold.min !== undefined || threshold.max !== undefined) {
+      result[type] = threshold;
+    }
+  }
+  return result;
+}
+
 export default function PotEditDialog({
   open,
   onClose,
   onSave,
   pot,
+  availableTypes = [],
 }: Props) {
   const { t } = useTranslation();
   const nameId = useId();
@@ -60,6 +94,8 @@ export default function PotEditDialog({
   const [reportingUnit, setReportingUnit] = useState<DurationUnit | "">("");
   const [reportingValue, setReportingValue] = useState<string>("");
 
+  const [thresholdState, setThresholdState] = useState<Record<string, ThresholdState>>({});
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,9 +107,10 @@ export default function PotEditDialog({
     const parsed = parseIsoDuration(pot.reportingTime);
     setReportingUnit(parsed.unit);
     setReportingValue(parsed.value);
+    setThresholdState(parseThresholds(pot.thresholds, availableTypes));
     setError(null);
     setSubmitting(false);
-  }, [open, pot]);
+  }, [open, pot, availableTypes]);
 
   const reportingNumber = useMemo(() => {
     if (!reportingValue.trim()) return NaN;
@@ -90,6 +127,13 @@ export default function PotEditDialog({
     return !!name.trim() && !submitting;
   }, [name, submitting]);
 
+  function updateThreshold(type: string, field: "min" | "max", value: string) {
+    setThresholdState(prev => ({
+      ...prev,
+      [type]: { ...prev[type], [field]: value }
+    }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -100,10 +144,12 @@ export default function PotEditDialog({
     setError(null);
 
     try {
+      const thresholds = buildThresholds(thresholdState);
       await onSave({
         name: trimmedName,
         note: note.trim() || undefined,
         reportingTime: reportingTimeIso,
+        thresholds: Object.keys(thresholds).length > 0 ? thresholds : undefined,
       });
       onClose();
     } catch (err: any) {
@@ -229,6 +275,69 @@ export default function PotEditDialog({
             disabled={submitting}
           />
         </div>
+
+        {availableTypes.length > 0 && (
+          <div className="field">
+            <label className="field-label">{t("THRESHOLD.thresholds")}:</label>
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              marginTop: 8
+            }}>
+              {availableTypes.map(type => (
+                <div key={type} style={{
+                  padding: 12,
+                  background: "rgba(0, 0, 0, 0.15)",
+                  borderRadius: 6
+                }}>
+                  <div style={{
+                    textTransform: "capitalize",
+                    fontWeight: 600,
+                    marginBottom: 10,
+                    fontSize: 15
+                  }}>
+                    {type}
+                  </div>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 12
+                  }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 13, opacity: 0.8, marginBottom: 4 }}>
+                        {t("THRESHOLD.min")}
+                      </label>
+                      <input
+                        type="number"
+                        className="input"
+                        style={{ width: "100%" }}
+                        value={thresholdState[type]?.min ?? ""}
+                        onChange={(e) => updateThreshold(type, "min", e.target.value)}
+                        placeholder="e.g. 20"
+                        disabled={submitting}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 13, opacity: 0.8, marginBottom: 4 }}>
+                        {t("THRESHOLD.max")}
+                      </label>
+                      <input
+                        type="number"
+                        className="input"
+                        style={{ width: "100%" }}
+                        value={thresholdState[type]?.max ?? ""}
+                        onChange={(e) => updateThreshold(type, "max", e.target.value)}
+                        placeholder="e.g. 80"
+                        disabled={submitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </form>
     </Modal>
   );

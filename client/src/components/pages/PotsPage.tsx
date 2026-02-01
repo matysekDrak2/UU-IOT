@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useMemo, useState } from "react";
-import type { Node, Pot } from "../../api/types";
-import { listNodes } from "../../api/enpoints/node";
+import type { Node, Pot, PotWarning } from "../../api/types";
+import { listNodes, listNodeWarnings } from "../../api/enpoints/node";
 import { listPotsByNode } from "../../api/enpoints/pot";
 import PotDetail from "../pot/PotDetail";
 import PotCreateDialog from "../pot/PotCreateDialog";
@@ -16,6 +16,7 @@ export default function PotsPage() {
 
   const [nodes, setNodes] = useState<Node[]>([]);
   const [pots, setPots] = useState<Pot[]>([]);
+  const [warnings, setWarnings] = useState<PotWarning[]>([]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedPotId, setSelectedPotId] = useState<string | null>(null);
@@ -26,6 +27,15 @@ export default function PotsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Calculate warning counts per pot
+  const warningCountByPot = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const warning of warnings) {
+      counts[warning.potId] = (counts[warning.potId] || 0) + 1;
+    }
+    return counts;
+  }, [warnings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +77,7 @@ export default function PotsPage() {
   useEffect(() => {
     if (selectedNodeId === null) {
       setPots([]);
+      setWarnings([]);
       return;
     }
 
@@ -77,13 +88,18 @@ export default function PotsPage() {
       setError(null);
 
       try {
-        const data = await listPotsByNode(nodeId);
+        const [potsData, warningsData] = await Promise.all([
+          listPotsByNode(nodeId),
+          listNodeWarnings(nodeId)
+        ]);
         if (!cancelled) {
-          setPots(safeArray<Pot>(data));
+          setPots(safeArray<Pot>(potsData));
+          setWarnings(warningsData);
         }
       } catch (e: any) {
         if (!cancelled) {
           setPots([]);
+          setWarnings([]);
           setError(e?.message ?? "Failed to load pots");
         }
       } finally {
@@ -155,6 +171,7 @@ export default function PotsPage() {
             pot={pot}
             onOpen={setSelectedPotId}
             showNodeId={false}
+            warningCount={warningCountByPot[pot.id] || 0}
           />
         ))}
       </div>

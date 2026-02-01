@@ -27,6 +27,7 @@ export type Node = {
   note?: string;
   status: NodeStatus;
   dataArchiving?: string;
+  potCount?: number;
 };
 
 export type NodeUpdate = {
@@ -40,6 +41,21 @@ export type NodeToken = {
   token: string;
 };
 
+// Threshold per measurement type
+export type Threshold = {
+  min?: number;
+  max?: number;
+};
+
+export type Thresholds = Record<string, Threshold>;
+
+// Latest measurement for display
+export type LatestMeasurement = {
+  type: string;
+  value: number;
+  timestamp: string;
+};
+
 // Pot
 export type Pot = {
   id: string;
@@ -48,12 +64,28 @@ export type Pot = {
   note?: string;
   status: NodeStatus;
   reportingTime?: string;
+  thresholds?: Thresholds;
+  latestMeasurement?: LatestMeasurement | null;
 };
 
 export type PotUpdate = {
   name?: string;
   note?: string;
   reportingTime?: string;
+  thresholds?: Thresholds;
+};
+
+// Warning from threshold breach
+export type PotWarning = {
+  id: string;
+  potId: string;
+  measurementType: string;
+  thresholdType: 'min' | 'max';
+  thresholdValue: number;
+  measuredValue: number;
+  measurementId: string;
+  createdAt: string;
+  dismissedAt?: string | null;
 };
 
 // Measurement

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { listNodes } from "../../api/enpoints/node";
-import type { Node } from "../../api/types";
+import React, { useEffect, useMemo, useState } from "react";
+import { listNodes, listNodeWarnings } from "../../api/enpoints/node";
+import type { Node, PotWarning } from "../../api/types";
 import NodeCard from "../node/NodeCard";
 import NodeDetailPage from "../node/NodeDetail";
 
@@ -10,6 +10,7 @@ function normalizeNodes(data: unknown): Node[] {
 
 export default function NodesPage() {
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [warningsByNode, setWarningsByNode] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,9 +22,21 @@ export default function NodesPage() {
 
     try {
       const data = await listNodes();
-      setNodes(normalizeNodes(data));
+      const nodesList = normalizeNodes(data);
+      setNodes(nodesList);
+
+      // Fetch warnings for each node
+      const warningCounts: Record<string, number> = {};
+      await Promise.all(
+        nodesList.map(async (node) => {
+          const warnings = await listNodeWarnings(node.id);
+          warningCounts[node.id] = warnings.length;
+        })
+      );
+      setWarningsByNode(warningCounts);
     } catch (e: any) {
       setNodes([]);
+      setWarningsByNode({});
       setError(e?.message ?? "Failed to load nodes");
     } finally {
       setLoading(false);
@@ -39,10 +52,28 @@ export default function NodesPage() {
 
       try {
         const data = await listNodes();
-        if (!cancelled) setNodes(normalizeNodes(data));
+        const nodesList = normalizeNodes(data);
+        if (!cancelled) {
+          setNodes(nodesList);
+
+          // Fetch warnings for each node
+          const warningCounts: Record<string, number> = {};
+          await Promise.all(
+            nodesList.map(async (node) => {
+              const warnings = await listNodeWarnings(node.id);
+              if (!cancelled) {
+                warningCounts[node.id] = warnings.length;
+              }
+            })
+          );
+          if (!cancelled) {
+            setWarningsByNode(warningCounts);
+          }
+        }
       } catch (e: any) {
         if (!cancelled) {
           setNodes([]);
+          setWarningsByNode({});
           setError(e?.message ?? "Failed to load nodes");
         }
       } finally {
@@ -81,8 +112,7 @@ export default function NodesPage() {
           <NodeCard
             key={node.id}
             node={node}
-            // If NodeCard supports opening:
-            // onOpen={() => setSelectedNodeId(node.id)}
+            warningCount={warningsByNode[node.id] || 0}
           />
         ))}
       </div>

@@ -60,6 +60,8 @@
   "NODE": {
     "node": "Uzel",
     "nodes": "Uzly",
+    "pot": "květináč",
+    "pots": "květináče",
     "name": "Název",
     "device_id": "ID zařízení",
     "provisioning_code": "Provisioning kód",
@@ -88,6 +90,7 @@
     "pot_info": "Informace o květináči",
     "name": "Název",
     "note": "Poznámka",
+    "no_data": "Žádná data",
     "reporting_time": "Interval hlášení",
     "select_unit": "Vybrat jednotku...",
     "minutes": "Minuty",
@@ -124,5 +127,21 @@
     "interval_1week": "1 týden",
     "no_data": "Žádná měření k dispozici",
     "types": "Typy"
+  },
+  "THRESHOLD": {
+    "thresholds": "Prahové hodnoty",
+    "min": "Min",
+    "max": "Max",
+    "no_thresholds": "Žádné prahové hodnoty",
+    "warning": "Varování",
+    "warnings": "Varování",
+    "breached_min": "Pod minimem ({{threshold}})",
+    "breached_max": "Nad maximem ({{threshold}})",
+    "measured_value": "Naměřeno: {{value}}",
+    "dismiss": "Zamítnout",
+    "dismiss_all": "Zamítnout vše",
+    "no_warnings": "Žádná aktivní varování",
+    "triggered_at": "Spuštěno: {{time}}",
+    "occurrences": "({{count}}x)"
   }
 }

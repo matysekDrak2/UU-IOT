@@ -17,13 +17,26 @@ const potCreateSchema = {
   additionalProperties: false
 };
 
+const thresholdSchema = {
+  type: "object",
+  properties: {
+    min: { type: "number" },
+    max: { type: "number" }
+  },
+  additionalProperties: false
+};
+
 const potUpdateSchema = {
   type: "object",
   properties: {
     name: { type: "string", maxLength: 50, minLength: 3 },
     note: { type: "string", maxLength: 200 },
     status: { type: "string", enum: ["active", "inactive", "unknown"] },
-    reportingTime: { type: "string" }
+    reportingTime: { type: "string" },
+    thresholds: {
+      type: "object",
+      additionalProperties: thresholdSchema
+    }
   },
   additionalProperties: false
 };
@@ -80,6 +93,7 @@ router.patch("/:potId", requireUserAuth, validateSchema(potUpdateSchema), async 
   if (req.body.name) { fields.push("name = ?"); params.push(req.body.name); }
   if (req.body.note !== undefined) { fields.push("note = ?"); params.push(req.body.note); }
   if (req.body.reportingTime !== undefined) { fields.push("reporting_time = ?"); params.push(req.body.reportingTime); }
+  if (req.body.thresholds !== undefined) { fields.push("thresholds = ?"); params.push(JSON.stringify(req.body.thresholds)); }
   if (fields.length === 0) return res.status(400).json({ error: "InvalidInput", message: "No updatable fields" });
 
   try {
@@ -155,6 +169,50 @@ router.get("/:potId/measurement", requireUserAuth, async (req, res) => {
   const data = await dao.listMeasurements(req.params.potId, req.query.timeStart as string | undefined, req.query.timeEnd as string | undefined);
   if (data === null) return res.status(500).json({ error: "ReadFailed", message: "Could not list measurements" });
   res.json(data);
+});
+
+// list active warnings for pot
+router.get("/:potId/warning", requireUserAuth, async (req, res) => {
+  const pot = await dao.getPot(req.params.potId);
+  if (!pot) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+  const node = await dao.findNodeById(pot.node_id);
+  const user = (req as any).user;
+  if (!node || node.user_id !== user.id) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+
+  const warnings = await dao.listActiveWarnings(req.params.potId);
+  if (warnings === null) return res.status(500).json({ error: "ReadFailed", message: "Could not list warnings" });
+  res.json(warnings);
+});
+
+// dismiss a specific warning
+router.post("/:potId/warning/:warningId/dismiss", requireUserAuth, async (req, res) => {
+  const pot = await dao.getPot(req.params.potId);
+  if (!pot) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+  const node = await dao.findNodeById(pot.node_id);
+  const user = (req as any).user;
+  if (!node || node.user_id !== user.id) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+
+  const warning = await dao.getWarning(req.params.warningId);
+  if (!warning || warning.potId !== req.params.potId) {
+    return res.status(404).json({ error: "NotFound", message: "Warning not found" });
+  }
+
+  const success = await dao.dismissWarning(req.params.warningId);
+  if (!success) return res.status(500).json({ error: "UpdateFailed", message: "Could not dismiss warning" });
+  res.status(204).send();
+});
+
+// dismiss all warnings for pot
+router.post("/:potId/warning/dismiss-all", requireUserAuth, async (req, res) => {
+  const pot = await dao.getPot(req.params.potId);
+  if (!pot) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+  const node = await dao.findNodeById(pot.node_id);
+  const user = (req as any).user;
+  if (!node || node.user_id !== user.id) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+
+  const success = await dao.dismissAllWarnings(req.params.potId);
+  if (!success) return res.status(500).json({ error: "UpdateFailed", message: "Could not dismiss warnings" });
+  res.status(204).send();
 });
 
 export default router;

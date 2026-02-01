@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS pots (
   note VARCHAR(1024) DEFAULT '',
   status ENUM('active','inactive','unknown') DEFAULT 'unknown',
   reporting_time VARCHAR(64) DEFAULT NULL,
+  thresholds JSON DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -65,6 +66,22 @@ CREATE TABLE IF NOT EXISTS measurements (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE,
   INDEX (pot_id, timestamp)
+) ENGINE=InnoDB;
+
+-- pot warnings (threshold violations)
+CREATE TABLE IF NOT EXISTS pot_warnings (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  pot_id CHAR(36) NOT NULL,
+  measurement_type VARCHAR(64) NOT NULL,
+  threshold_type ENUM('min', 'max') NOT NULL,
+  threshold_value DOUBLE NOT NULL,
+  measured_value DOUBLE NOT NULL,
+  measurement_id CHAR(36) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  dismissed_at TIMESTAMP NULL,
+  FOREIGN KEY (pot_id) REFERENCES pots(id) ON DELETE CASCADE,
+  FOREIGN KEY (measurement_id) REFERENCES measurements(id) ON DELETE CASCADE,
+  INDEX (pot_id, dismissed_at)
 ) ENGINE=InnoDB;
 
 -- node errors

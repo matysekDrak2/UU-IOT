@@ -3,6 +3,12 @@ services:
     build: .
     ports:
       - "5173:5173"
+    networks:
+      - cloudflare
     environment:
-      - VITE_API_URL=http://uuiotbe.cytadel.xyz:8080/api/V1
+      - VITE_API_URL=https://uuiot.cytadel.xyz/api/V1
       - VITE_USE_MOCKS=false
+
+networks:
+  cloudflare:
+    external: true

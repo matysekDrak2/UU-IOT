@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Pot, Measurement, PotUpdate } from "../../api/types";
-import { getPot, updatePot } from "../../api/enpoints/pot";
+import type { Pot, Measurement, PotUpdate, PotWarning } from "../../api/types";
+import { getPot, updatePot, listPotWarnings, dismissWarning, dismissAllWarnings } from "../../api/enpoints/pot";
 import { listMeasurements } from "../../api/enpoints/measurement";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -96,6 +96,7 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
 
   const [pot, setPot] = useState<Pot | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [warnings, setWarnings] = useState<PotWarning[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [interval, setInterval] = useState<IntervalOption>("auto");
@@ -110,6 +111,80 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
     }
     return Array.from(types).sort();
   }, [measurements]);
+
+  // Group warnings by measurementType + thresholdType
+  type GroupedWarning = {
+    measurementType: string;
+    thresholdType: 'min' | 'max';
+    thresholdValue: number;
+    measuredValues: number[];
+    startTime: string;
+    endTime: string;
+    warningIds: string[];
+    count: number;
+  };
+
+  const groupedWarnings = useMemo(() => {
+    if (warnings.length === 0) return [];
+
+    // Group by measurementType + thresholdType
+    const groups = new Map<string, PotWarning[]>();
+    for (const warning of warnings) {
+      const key = `${warning.measurementType}:${warning.thresholdType}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(warning);
+    }
+
+    // Create grouped warnings
+    const result: GroupedWarning[] = [];
+    for (const [, groupWarnings] of groups) {
+      // Sort by createdAt
+      const sorted = [...groupWarnings].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+
+      result.push({
+        measurementType: first.measurementType,
+        thresholdType: first.thresholdType,
+        thresholdValue: first.thresholdValue,
+        measuredValues: sorted.map(w => w.measuredValue),
+        startTime: first.createdAt,
+        endTime: last.createdAt,
+        warningIds: sorted.map(w => w.id),
+        count: sorted.length,
+      });
+    }
+
+    // Sort groups by earliest occurrence
+    return result.sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+  }, [warnings]);
+
+  function formatWarningTime(iso: string): string {
+    const date = new Date(iso);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatWarningTimeRange(start: string, end: string): string {
+    const startTime = formatWarningTime(start);
+    if (start === end) return startTime;
+    const endTime = formatWarningTime(end);
+    return `${startTime} - ${endTime}`;
+  }
+
+  async function handleDismissGroup(warningIds: string[]) {
+    if (!potId) return;
+    try {
+      // Dismiss all warnings in the group
+      await Promise.all(warningIds.map(id => dismissWarning(potId, id)));
+      setWarnings(prev => prev.filter(w => !warningIds.includes(w.id)));
+    } catch {
+      // ignore
+    }
+  }
 
   // Initialize enabledTypes when availableTypes changes
   useEffect(() => {
@@ -149,6 +224,26 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
     }
   }
 
+  async function handleDismissWarning(warningId: string) {
+    if (!potId) return;
+    try {
+      await dismissWarning(potId, warningId);
+      setWarnings(prev => prev.filter(w => w.id !== warningId));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleDismissAllWarnings() {
+    if (!potId) return;
+    try {
+      await dismissAllWarnings(potId);
+      setWarnings([]);
+    } catch {
+      // ignore
+    }
+  }
+
   function formatReportingTime(iso: string | undefined): string {
     if (!iso) return "-";
     const minutesMatch = iso.match(/^PT(\d+)M$/i);
@@ -172,17 +267,22 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
         const potData = await getPot(potId);
         if (!potData) throw new Error("Pot not found");
 
-        const measurementsData = await listMeasurements(potId);
+        const [measurementsData, warningsData] = await Promise.all([
+          listMeasurements(potId),
+          listPotWarnings(potId)
+        ]);
         const normalized = normalizeMeasurements(measurementsData);
 
         if (!cancelled) {
           setPot(potData);
           setMeasurements(normalized);
+          setWarnings(Array.isArray(warningsData) ? warningsData : []);
         }
       } catch (e: unknown) {
         if (!cancelled) {
           setPot(null);
           setMeasurements([]);
+          setWarnings([]);
           setError(e instanceof Error ? e.message : "Failed to load pot");
         }
       } finally {
@@ -380,6 +480,49 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
 
       <h1>{pot.name ?? "My Pot"}</h1>
 
+      {groupedWarnings.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, borderColor: "#f59e0b", background: "rgba(245, 158, 11, 0.1)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, color: "#f59e0b" }}>{t("THRESHOLD.warnings")} ({warnings.length})</h3>
+            <button
+              className="btn btn-secondary"
+              onClick={handleDismissAllWarnings}
+            >
+              {t("THRESHOLD.dismiss_all")}
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {groupedWarnings.map(group => (
+              <div key={`${group.measurementType}-${group.thresholdType}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 8, background: "rgba(0,0,0,0.1)", borderRadius: 4 }}>
+                <div>
+                  <strong style={{ textTransform: "capitalize" }}>{group.measurementType}</strong>:{" "}
+                  {group.thresholdType === "min"
+                    ? t("THRESHOLD.breached_min", { threshold: group.thresholdValue })
+                    : t("THRESHOLD.breached_max", { threshold: group.thresholdValue })}
+                  {" - "}
+                  {t("THRESHOLD.measured_value", { value: group.measuredValues[group.measuredValues.length - 1] })}
+                  {group.count > 1 && (
+                    <span style={{ marginLeft: 8, opacity: 0.8 }}>
+                      {t("THRESHOLD.occurrences", { count: group.count })}
+                    </span>
+                  )}
+                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                    {t("THRESHOLD.triggered_at", { time: formatWarningTimeRange(group.startTime, group.endTime) })}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: "4px 8px", fontSize: 12 }}
+                  onClick={() => handleDismissGroup(group.warningIds)}
+                >
+                  {t("THRESHOLD.dismiss")}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>{t("POT.pot_info")}</h3>
@@ -490,6 +633,7 @@ export default function PotDetail({ potId: potIdProp, onBack }: Props) {
         onClose={() => setEditOpen(false)}
         onSave={handleSavePot}
         pot={pot}
+        availableTypes={availableTypes}
       />
     </div>
   );

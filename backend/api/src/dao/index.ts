@@ -182,6 +182,43 @@ export async function listPotsByNode(nodeId: string) {
   }
 }
 
+export async function listNodesWithStats(userId: string) {
+  try {
+    const [rows] = await getPool().execute<any[]>(
+      `SELECT n.*, COUNT(p.id) AS pot_count
+       FROM nodes n
+       LEFT JOIN pots p ON p.node_id = n.id
+       WHERE n.user_id = ?
+       GROUP BY n.id`,
+      [userId]
+    );
+    return rows;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function listPotsWithLatestMeasurement(nodeId: string) {
+  try {
+    const [rows] = await getPool().execute<any[]>(
+      `SELECT p.*, lm.type AS latest_type, lm.value AS latest_value, lm.timestamp AS latest_timestamp
+       FROM pots p
+       LEFT JOIN (
+         SELECT pot_id, type, value, timestamp
+         FROM (
+           SELECT *, ROW_NUMBER() OVER (PARTITION BY pot_id ORDER BY timestamp DESC) AS rn
+           FROM measurements
+         ) ranked WHERE rn = 1
+       ) lm ON lm.pot_id = p.id
+       WHERE p.node_id = ?`,
+      [nodeId]
+    );
+    return rows;
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function getPot(potId: string) {
   try {
     const [rows] = await getPool().execute<any[]>("SELECT * FROM pots WHERE id = ? LIMIT 1", [potId]);
@@ -196,6 +233,25 @@ function toMySQLDateTime(isoString: string): string {
   const d = new Date(isoString);
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
+
+export type Threshold = {
+  min?: number;
+  max?: number;
+};
+
+export type Thresholds = Record<string, Threshold>;
+
+export type PotWarning = {
+  id: string;
+  potId: string;
+  measurementType: string;
+  thresholdType: 'min' | 'max';
+  thresholdValue: number;
+  measuredValue: number;
+  measurementId: string;
+  createdAt: string;
+  dismissedAt?: string | null;
+};
 
 export async function createMeasurement(potId: string, timestamp: string, value: number, type: string) {
   const id = randomUUID();
@@ -212,6 +268,28 @@ export async function createMeasurement(potId: string, timestamp: string, value:
     if (!header || typeof header.affectedRows !== "number" || header.affectedRows !== 1) {
       return null;
     }
+
+    // Check thresholds and create warnings if breached
+    const pot = await getPot(potId);
+    if (pot && pot.thresholds) {
+      let thresholds: Thresholds;
+      try {
+        thresholds = typeof pot.thresholds === 'string' ? JSON.parse(pot.thresholds) : pot.thresholds;
+      } catch {
+        thresholds = {};
+      }
+
+      const threshold = thresholds[type];
+      if (threshold) {
+        if (threshold.min !== undefined && value < threshold.min) {
+          await createPotWarning(potId, type, 'min', threshold.min, value, id);
+        }
+        if (threshold.max !== undefined && value > threshold.max) {
+          await createPotWarning(potId, type, 'max', threshold.max, value, id);
+        }
+      }
+    }
+
     return { id, potId, timestamp, value, type };
   } catch (e) {
     return null;
@@ -294,6 +372,143 @@ export async function listNodeErrorsByUser(userId: string, nodeId?: string, time
   try {
     const [rows] = await getPool().execute<any[]>(sql, params);
     return rows;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Pot thresholds
+export async function updatePotThresholds(potId: string, thresholds: Thresholds | null) {
+  try {
+    const result = await getPool().execute(
+      "UPDATE pots SET thresholds = ? WHERE id = ?",
+      [thresholds ? JSON.stringify(thresholds) : null, potId]
+    );
+    const header = result[0] as mysql.ResultSetHeader;
+    return header && typeof header.affectedRows === "number" && header.affectedRows === 1;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Pot warnings
+export async function createPotWarning(
+  potId: string,
+  measurementType: string,
+  thresholdType: 'min' | 'max',
+  thresholdValue: number,
+  measuredValue: number,
+  measurementId: string
+) {
+  const id = randomUUID();
+  try {
+    const result = await getPool().execute(
+      "INSERT INTO pot_warnings (id, pot_id, measurement_type, threshold_type, threshold_value, measured_value, measurement_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [id, potId, measurementType, thresholdType, thresholdValue, measuredValue, measurementId]
+    );
+    const header = result[0] as mysql.ResultSetHeader;
+    if (!header || typeof header.affectedRows !== "number" || header.affectedRows !== 1) {
+      return null;
+    }
+    return { id, potId, measurementType, thresholdType, thresholdValue, measuredValue, measurementId };
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function listActiveWarnings(potId: string): Promise<PotWarning[] | null> {
+  try {
+    const [rows] = await getPool().execute<any[]>(
+      "SELECT id, pot_id, measurement_type, threshold_type, threshold_value, measured_value, measurement_id, created_at, dismissed_at FROM pot_warnings WHERE pot_id = ? AND dismissed_at IS NULL ORDER BY created_at DESC",
+      [potId]
+    );
+    return rows.map(row => ({
+      id: row.id,
+      potId: row.pot_id,
+      measurementType: row.measurement_type,
+      thresholdType: row.threshold_type,
+      thresholdValue: row.threshold_value,
+      measuredValue: row.measured_value,
+      measurementId: row.measurement_id,
+      createdAt: row.created_at,
+      dismissedAt: row.dismissed_at
+    }));
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function listActiveWarningsByNode(nodeId: string): Promise<PotWarning[] | null> {
+  try {
+    const [rows] = await getPool().execute<any[]>(
+      `SELECT pw.id, pw.pot_id, pw.measurement_type, pw.threshold_type, pw.threshold_value, pw.measured_value, pw.measurement_id, pw.created_at, pw.dismissed_at
+       FROM pot_warnings pw
+       JOIN pots p ON p.id = pw.pot_id
+       WHERE p.node_id = ? AND pw.dismissed_at IS NULL
+       ORDER BY pw.created_at DESC`,
+      [nodeId]
+    );
+    return rows.map(row => ({
+      id: row.id,
+      potId: row.pot_id,
+      measurementType: row.measurement_type,
+      thresholdType: row.threshold_type,
+      thresholdValue: row.threshold_value,
+      measuredValue: row.measured_value,
+      measurementId: row.measurement_id,
+      createdAt: row.created_at,
+      dismissedAt: row.dismissed_at
+    }));
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function dismissWarning(warningId: string): Promise<boolean> {
+  try {
+    const result = await getPool().execute(
+      "UPDATE pot_warnings SET dismissed_at = NOW() WHERE id = ? AND dismissed_at IS NULL",
+      [warningId]
+    );
+    const header = result[0] as mysql.ResultSetHeader;
+    return header && typeof header.affectedRows === "number" && header.affectedRows === 1;
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function dismissAllWarnings(potId: string): Promise<boolean> {
+  try {
+    const result = await getPool().execute(
+      "UPDATE pot_warnings SET dismissed_at = NOW() WHERE pot_id = ? AND dismissed_at IS NULL",
+      [potId]
+    );
+    const header = result[0] as mysql.ResultSetHeader;
+    return header && typeof header.affectedRows === "number" && header.affectedRows >= 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function getWarning(warningId: string): Promise<PotWarning | null> {
+  try {
+    const [rows] = await getPool().execute<any[]>(
+      "SELECT id, pot_id, measurement_type, threshold_type, threshold_value, measured_value, measurement_id, created_at, dismissed_at FROM pot_warnings WHERE id = ? LIMIT 1",
+      [warningId]
+    );
+    if (!rows[0]) return null;
+    const row = rows[0];
+    return {
+      id: row.id,
+      potId: row.pot_id,
+      measurementType: row.measurement_type,
+      thresholdType: row.threshold_type,
+      thresholdValue: row.threshold_value,
+      measuredValue: row.measured_value,
+      measurementId: row.measurement_id,
+      createdAt: row.created_at,
+      dismissedAt: row.dismissed_at
+    };
   } catch (e) {
     return null;
   }

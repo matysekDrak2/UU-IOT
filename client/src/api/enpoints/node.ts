@@ -1,5 +1,5 @@
 import { api } from "../client";
-import type { Node, NodeToken, NodeUpdate } from "../types";
+import type { Node, NodeToken, NodeUpdate, PotWarning } from "../types";
 
 function asArray<T>(x: unknown): T[] {
   return Array.isArray(x) ? (x as T[]) : [];
@@ -10,10 +10,13 @@ export async function createNodeToken(): Promise<NodeToken> {
   return api<NodeToken>("/node", { method: "PUT" });
 }
 
-// GET /node — list
+// GET /node — list with pot counts
 export async function listNodes(): Promise<Node[]> {
   const raw = await api<unknown>("/node", { method: "GET" });
-  return asArray<Node>(raw);
+  return asArray<any>(raw).map((n) => ({
+    ...n,
+    potCount: n.pot_count,
+  }));
 }
 
 // GET /node/{nodeId}
@@ -49,5 +52,15 @@ export async function deleteNode(nodeId: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+// GET /node/{nodeId}/warning — list active warnings for all pots under node
+export async function listNodeWarnings(nodeId: string): Promise<PotWarning[]> {
+  try {
+    const raw = await api<unknown>(`/node/${nodeId}/warning`, { method: "GET" });
+    return Array.isArray(raw) ? (raw as PotWarning[]) : [];
+  } catch {
+    return [];
   }
 }

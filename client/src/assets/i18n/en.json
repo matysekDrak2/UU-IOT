@@ -65,6 +65,8 @@
   "NODE": {
     "node": "Node",
     "nodes": "Nodes",
+    "pot": "pot",
+    "pots": "pots",
     "node_details": "Node details",
     "name": "Name",
     "device_info": "Device info",
@@ -95,6 +97,7 @@
     "pot_info": "Pot information",
     "name": "Name",
     "note": "Note",
+    "no_data": "No data",
     "reporting_time": "Reporting time",
     "select_unit": "Select unit...",
     "minutes": "Minutes",
@@ -131,5 +134,21 @@
     "interval_1week": "1 week",
     "no_data": "No measurements available",
     "types": "Types"
+  },
+  "THRESHOLD": {
+    "thresholds": "Thresholds",
+    "min": "Min",
+    "max": "Max",
+    "no_thresholds": "No thresholds configured",
+    "warning": "Warning",
+    "warnings": "Warnings",
+    "breached_min": "Below minimum ({{threshold}})",
+    "breached_max": "Above maximum ({{threshold}})",
+    "measured_value": "Measured: {{value}}",
+    "dismiss": "Dismiss",
+    "dismiss_all": "Dismiss all",
+    "no_warnings": "No active warnings",
+    "triggered_at": "Triggered: {{time}}",
+    "occurrences": "({{count}}x)"
   }
 }

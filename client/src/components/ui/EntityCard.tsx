@@ -1,13 +1,15 @@
+import type { ReactNode } from "react";
+
 type Status = "active" | "inactive" | "unknown";
 
 type Props = {
-  title: string;
+  title: ReactNode;
   subtitle?: string;
   status?: Status;
   metaLeft?: string;
   metaRight?: string;
   onClick?: () => void;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
 };
 
 function statusLabel(status?: Status) {
