@@ -2,6 +2,7 @@
   "USER": {
     "user": "Uživatel",
     "profile": "Profil",
+    "id": "ID uživatele",
     "username": "Uživatelské jméno",
     "email": "E-mail",
     "password": "Heslo",
@@ -67,13 +68,32 @@
     "last_update": "Poslední aktualizace",
     "condition": "Stav",
     "moisture": "Vlhkost půdy",
-    "signal": "Síla signálu"
+    "signal": "Síla signálu",
+    "note": "Poznámka",
+    "data_archiving": "Archivace dat",
+    "select_unit": "Vybrat jednotku...",
+    "minutes": "Minuty",
+    "hours": "Hodiny",
+    "days": "Dny",
+    "value": "Hodnota"
   },
   "UI": {
     "menu": "Menu",
     "smart_garden": "SmartGarden",
     "new_node": "Nový uzel",
-    "edit_node": "Upravit uzel"
+    "edit_node": "Upravit uzel",
+    "edit_pot": "Upravit květináč"
+  },
+  "POT": {
+    "pot_info": "Informace o květináči",
+    "name": "Název",
+    "note": "Poznámka",
+    "reporting_time": "Interval hlášení",
+    "select_unit": "Vybrat jednotku...",
+    "minutes": "Minuty",
+    "hours": "Hodiny",
+    "days": "Dny",
+    "value": "Hodnota"
   },
   "AUTH": {
     "login_title": "Přihlášení do SmartGarden",
@@ -90,5 +110,19 @@
     "password_mismatch": "Hesla se neshodují",
     "username_required": "Uživatelské jméno je povinné",
     "username_length": "Uživatelské jméno musí mít 3-30 znaků"
+  },
+  "CHART": {
+    "measurements": "Měření",
+    "moisture": "Vlhkost",
+    "interval": "Interval agregace",
+    "interval_auto": "Automaticky",
+    "interval_5min": "5 minut",
+    "interval_15min": "15 minut",
+    "interval_1hour": "1 hodina",
+    "interval_6hour": "6 hodin",
+    "interval_1day": "1 den",
+    "interval_1week": "1 týden",
+    "no_data": "Žádná měření k dispozici",
+    "types": "Typy"
   }
 }

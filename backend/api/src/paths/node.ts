@@ -5,17 +5,6 @@ import { validateSchema, requireUserAuth, requireNodeAuth } from "../lib/middlew
 
 const router = express.Router();
 
-const nodeCreateSchema = {
-  type: "object",
-  properties: {
-    name: { type: "string", maxLength: 50, minLength: 3 },
-    note: { type: "string", maxLength: 200 },
-    status: { type: "string", enum: ["active", "inactive", "unknown"] },
-    dataArchiving: { type: "string" }
-  },
-  required: ["name"],
-  additionalProperties: false
-};
 const heartbeatSchema = {
   type: "object",
   properties: {
@@ -48,6 +37,15 @@ const nodeClaimSchema = {
   additionalProperties: false
 };
 
+const deviceRegisterSchema = {
+  type: "object",
+  properties: {
+    userId: { type: "string", format: "uuid" }
+  },
+  required: ["userId"],
+  additionalProperties: false
+};
+
 const nodeErrorSchema = {
   type: "object",
   properties: {
@@ -65,33 +63,26 @@ const nodeErrorSchema = {
  * PUT /api/V1/node
  * Device registration - returns node token
  */
-router.put("/", async (req, res) => {
-  const { userId, name } = req.body ?? {};
+router.put("/", validateSchema(deviceRegisterSchema), async (req, res) => {
+  const { userId } = req.body;
 
-  if (!userId || typeof userId !== "string") {
-    return res.status(400).json({ error: "InvalidInput", message: "userId is required" });
-  }
-
-  // ověř, že user existuje
-  const [users] = await dao.getPool().execute<any[]>(
+  // Verify user exists
+  const [userRows] = await dao.getPool().execute<any[]>(
     "SELECT id FROM users WHERE id = ? LIMIT 1",
     [userId]
   );
-  if (!users || users.length === 0) {
-    return res.status(404).json({ error: "NotFound", message: "User not found" });
+  if (!userRows || userRows.length === 0) {
+    return res.status(400).json({ error: "InvalidInput", message: "User not found." });
   }
 
   const nodeId = randomUUID();
   const token = randomBytes(32).toString("hex"); // 64 hex
-  const nodeName = (typeof name === "string" && name.length >= 3) ? name : `node-${nodeId}`;
 
-  // vytvoř node a přiřaď userovi
   await dao.getPool().execute(
     "INSERT INTO nodes (id, user_id, name, note, status, created_at) VALUES (?, ?, ?, '', 'unknown', NOW())",
-    [nodeId, userId, nodeName]
+    [nodeId, userId, `node-${nodeId}`]
   );
 
-  // vytvoř node token
   await dao.createNodeToken(nodeId, token);
 
   // default pot pro node (ať má ESP kam posílat)
@@ -102,26 +93,6 @@ router.put("/", async (req, res) => {
   );
 
   return res.status(201).json({ nodeId, token, potId });
-});
-
-
-/**
- * POST /api/V1/node
- * User creates node
- */
-router.post("/", requireUserAuth, validateSchema(nodeCreateSchema), async (req, res) => {
-  const user = (req as any).user;
-  const { name, note, status, dataArchiving } = req.body;
-
-  const node = await dao.createNode(
-    user.id,
-    name,
-    note || "",
-    status || "unknown",
-    dataArchiving || null
-  );
-
-  return res.status(201).json(node);
 });
 
 /**
@@ -151,6 +122,23 @@ router.get("/error", requireUserAuth, async (req, res) => {
 
   const list = await dao.listNodeErrorsByUser(user.id, nodeId, timeStart, timeEnd);
   return res.json(list);
+});
+
+/**
+ * GET /api/V1/node/:nodeId/pot
+ * List pots for a specific node
+ */
+router.get("/:nodeId/pot", requireUserAuth, async (req, res) => {
+  const user = (req as any).user;
+  const { nodeId } = req.params;
+
+  const node = await dao.findNodeById(nodeId);
+  if (!node || node.user_id !== user.id) {
+    return res.status(404).json({ error: "NotFound", message: "Node not found" });
+  }
+
+  const pots = await dao.listPotsByNode(nodeId);
+  return res.json(pots);
 });
 
 /**

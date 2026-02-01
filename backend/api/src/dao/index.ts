@@ -192,13 +192,19 @@ export async function getPot(potId: string) {
 }
 
 // Measurements
+function toMySQLDateTime(isoString: string): string {
+  const d = new Date(isoString);
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 export async function createMeasurement(potId: string, timestamp: string, value: number, type: string) {
   const id = randomUUID();
+  const mysqlTimestamp = toMySQLDateTime(timestamp);
   try {
     const result = await getPool().execute("INSERT INTO measurements (id, pot_id, timestamp, value, type) VALUES (?, ?, ?, ?, ?)", [
       id,
       potId,
-      timestamp,
+      mysqlTimestamp,
       value,
       type
     ]);
@@ -213,8 +219,9 @@ export async function createMeasurement(potId: string, timestamp: string, value:
 }
 
 export async function listMeasurements(potId: string, timeStart?: string, timeEnd?: string) {
-  let sql = "SELECT * FROM measurements WHERE pot_id = ?";
   const params: any[] = [potId];
+  let sql = "SELECT * FROM measurements WHERE pot_id = ?";
+
   if (timeStart) {
     sql += " AND timestamp >= ?";
     params.push(timeStart);
@@ -223,9 +230,24 @@ export async function listMeasurements(potId: string, timeStart?: string, timeEn
     sql += " AND timestamp <= ?";
     params.push(timeEnd);
   }
-  sql += " ORDER BY timestamp DESC LIMIT 1000";
+  sql += " ORDER BY timestamp DESC LIMIT 10000";
+
   try {
     const [rows] = await getPool().execute<any[]>(sql, params);
+    return rows;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function getLatestMeasurements(potId: string) {
+  const sql = `SELECT id, pot_id, timestamp, value, type, created_at FROM (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY type ORDER BY timestamp DESC) as rn
+    FROM measurements WHERE pot_id = ?
+  ) ranked WHERE rn = 1`;
+
+  try {
+    const [rows] = await getPool().execute<any[]>(sql, [potId]);
     return rows;
   } catch (e) {
     return null;
@@ -235,7 +257,7 @@ export async function listMeasurements(potId: string, timeStart?: string, timeEn
 // Node errors
 export async function reportNodeError(nodeId: string, code: string, message: string, severity: string, timestamp: string | null) {
   const id = randomUUID();
-  const ts = timestamp || new Date().toISOString();
+  const ts = toMySQLDateTime(timestamp || new Date().toISOString());
   try {
     const result = await getPool().execute(
       "INSERT INTO node_errors (id, node_id, code, message, severity, timestamp) VALUES (?, ?, ?, ?, ?, ?)",

@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { listNodes, createNode } from "../../api/enpoints/node";
-import type { NodeCreate } from "../../api/types";
+import { listNodes } from "../../api/enpoints/node";
 import type { Node } from "../../api/types";
 import NodeCard from "../node/NodeCard";
 import NodeDetailPage from "../node/NodeDetail";
-import NodeCreateDialog from "../node/NodeCreateDialog";
 
 function normalizeNodes(data: unknown): Node[] {
   return Array.isArray(data) ? (data as Node[]) : [];
@@ -16,8 +14,6 @@ export default function NodesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-
-  const [createOpen, setCreateOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -59,19 +55,6 @@ export default function NodesPage() {
     };
   }, []);
 
-  async function handleCreateNode(payload: NodeCreate) {
-    try {
-      setError(null);
-
-      await createNode(payload); // backend sets userId
-      setCreateOpen(false);
-
-      await load(); // refresh list from backend
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to create node");
-    }
-  }
-
   if (selectedNodeId) {
     // NOTE: your NodeDetailPage currently doesn't receive nodeId, so it likely uses useParams().
     // If you want to open details from list without routing, you should pass nodeId similarly to PotDetail.
@@ -87,7 +70,7 @@ export default function NodesPage() {
       <div id="no_nodes" className="card">
         <h2 className="card-title">No nodes</h2>
         <p style={{ margin: 0, opacity: 0.7 }}>
-          You don’t have any devices yet.
+          You don't have any devices yet.
         </p>
       </div>
     );
@@ -114,23 +97,13 @@ export default function NodesPage() {
           <p className="page-subtitle">Your devices</p>
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            className="btn btn-secondary"
-            onClick={load}
-            disabled={loading}
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            onClick={() => setCreateOpen(true)}
-            disabled={loading}
-          >
-            Add new node
-          </button>
-        </div>
+        <button
+          className="btn btn-secondary"
+          onClick={load}
+          disabled={loading}
+        >
+          {loading ? "Refreshing…" : "Refresh"}
+        </button>
       </div>
 
       {error && (
@@ -141,12 +114,6 @@ export default function NodesPage() {
       )}
 
       {content}
-
-      <NodeCreateDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSubmit={handleCreateNode}
-      />
     </div>
   );
 }

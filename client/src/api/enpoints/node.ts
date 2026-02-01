@@ -1,11 +1,11 @@
 import { api } from "../client";
-import type { Node, NodeCreate, NodeToken, NodeUpdate } from "../types";
+import type { Node, NodeToken, NodeUpdate } from "../types";
 
 function asArray<T>(x: unknown): T[] {
   return Array.isArray(x) ? (x as T[]) : [];
 }
 
-// PUT /node — create token
+// PUT /node — device registration (creates node token)
 export async function createNodeToken(): Promise<NodeToken> {
   return api<NodeToken>("/node", { method: "PUT" });
 }
@@ -14,11 +14,6 @@ export async function createNodeToken(): Promise<NodeToken> {
 export async function listNodes(): Promise<Node[]> {
   const raw = await api<unknown>("/node", { method: "GET" });
   return asArray<Node>(raw);
-}
-
-// POST /node — register
-export async function createNode(payload: NodeCreate): Promise<Node> {
-  return api<Node>("/node", { method: "POST", body: payload });
 }
 
 // GET /node/{nodeId}

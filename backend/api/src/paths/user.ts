@@ -85,7 +85,7 @@ router.post("/", validateSchema(userLoginSchema), async (req, res) => {
 // get user info
 router.get("/", requireUserAuth, async (req, res) => {
   const user = (req as any).user;
-  res.json({ username: user.username, email: user.email });
+  res.json({ id: user.id, username: user.username, email: user.email });
 });
 
 // patch user

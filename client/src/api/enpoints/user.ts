@@ -14,5 +14,5 @@ export function loginUser(payload: { email: string; password: string }) {
 }
 
 export function getMe() {
-  return api<{ username: string; email: string }>("/user", { method: "GET" });
+  return api<{ id: string; username: string; email: string }>("/user", { method: "GET" });
 }

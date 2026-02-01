@@ -4,6 +4,7 @@ import { clearToken } from "../../auth/tokenStorage";
 import { useTranslation } from "react-i18next";
 
 type Me = {
+  id: string;
   username: string;
   email: string; // login
 };
@@ -63,6 +64,11 @@ export default function ProfilePage() {
 
         {!loading && !error && me && (
           <div className="profile_info">
+            <div className="field">
+              <div className="label">{t("USER.id")}:</div>
+              <div className="value">{me.id}</div>
+            </div>
+
             <div className="field">
               <div className="label">{t("USER.username")}:</div>
               <div className="value">{me.username}</div>

@@ -29,13 +29,6 @@ export type Node = {
   dataArchiving?: string;
 };
 
-export type NodeCreate = {
-  name: string;
-  note?: string;
-  status?: NodeStatus;
-  dataArchiving?: string;
-};
-
 export type NodeUpdate = {
   name?: string;
   note?: string;
@@ -54,11 +47,13 @@ export type Pot = {
   name?: string;
   note?: string;
   status: NodeStatus;
+  reportingTime?: string;
 };
 
 export type PotUpdate = {
   name?: string;
   note?: string;
+  reportingTime?: string;
 };
 
 // Measurement

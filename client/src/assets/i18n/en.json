@@ -2,6 +2,7 @@
   "USER": {
     "user": "User",
     "profile": "Profile",
+    "id": "User ID",
     "username": "Username",
     "email": "Email",
     "password": "Password",
@@ -74,13 +75,32 @@
     "last_update": "Last update",
     "condition": "Condition",
     "moisture": "Soil moisture",
-    "signal": "Signal strength"
+    "signal": "Signal strength",
+    "note": "Note",
+    "data_archiving": "Data archiving",
+    "select_unit": "Select unit...",
+    "minutes": "Minutes",
+    "hours": "Hours",
+    "days": "Days",
+    "value": "Value"
   },
   "UI": {
     "menu": "Menu",
     "smart_garden": "SmartGarden",
     "new_node": "New node",
-    "edit_node": "Edit node"
+    "edit_node": "Edit node",
+    "edit_pot": "Edit pot"
+  },
+  "POT": {
+    "pot_info": "Pot information",
+    "name": "Name",
+    "note": "Note",
+    "reporting_time": "Reporting time",
+    "select_unit": "Select unit...",
+    "minutes": "Minutes",
+    "hours": "Hours",
+    "days": "Days",
+    "value": "Value"
   },
   "AUTH": {
     "login_title": "Login to SmartGarden",
@@ -97,5 +117,19 @@
     "password_mismatch": "Passwords do not match",
     "username_required": "Username is required",
     "username_length": "Username must be 3-30 characters"
+  },
+  "CHART": {
+    "measurements": "Measurements",
+    "moisture": "Moisture",
+    "interval": "Aggregation interval",
+    "interval_auto": "Auto",
+    "interval_5min": "5 minutes",
+    "interval_15min": "15 minutes",
+    "interval_1hour": "1 hour",
+    "interval_6hour": "6 hours",
+    "interval_1day": "1 day",
+    "interval_1week": "1 week",
+    "no_data": "No measurements available",
+    "types": "Types"
   }
 }

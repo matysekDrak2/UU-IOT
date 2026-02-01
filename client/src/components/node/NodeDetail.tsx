@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { getNode } from "../../api/enpoints/node";
+import { getNode, updateNode } from "../../api/enpoints/node";
 import { listPotsByNode } from "../../api/enpoints/pot";
-import type { Node, Pot } from "../../api/types";
+import type { Node, NodeUpdate, Pot } from "../../api/types";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
+import NodeEditDialog from "./NodeEditDialog";
 
 type Props = {
   readonly onBack?: () => void;
@@ -20,6 +21,7 @@ export default function NodeDetail({ onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const potCount = useMemo(() => pots.length, [pots]);
 
@@ -65,6 +67,15 @@ export default function NodeDetail({ onBack }: Props) {
     }
   }
 
+  async function handleSaveNode(payload: NodeUpdate) {
+    const updated = await updateNode(nodeId, payload);
+    if (updated) {
+      setNode(updated);
+    } else {
+      throw new Error(t("NOTIFICATION.error"));
+    }
+  }
+
   if (loading) return <p>Loading…</p>;
 
   if (error || !node)
@@ -89,17 +100,29 @@ export default function NodeDetail({ onBack }: Props) {
       </div>
 
       <div className="card">
-        <h2 className="card-title">{t("NODE.device_info")}</h2>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 className="card-title" style={{ margin: 0 }}>{t("NODE.device_info")}</h2>
+          <button onClick={() => setEditOpen(true)} className="btn btn-secondary">
+            {t("ACTION.edit")}
+          </button>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
           <div>ID: {node.id}</div>
           <button onClick={copyNodeId} className={"btn-secondary"}>
             {copied ? "Copied" : "Copy"}
           </button>
         </div>
         <div>Status: {node.status}</div>
-        <div>Data archiving: {node.dataArchiving}</div>
+        <div>Data archiving: {node.dataArchiving ?? "—"}</div>
         <div>Note: {node.note ?? "—"}</div>
       </div>
+
+      <NodeEditDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSave={handleSaveNode}
+        node={node}
+      />
 
       <div className="card">
         <h2 className="card-title">Pots under this node:</h2>

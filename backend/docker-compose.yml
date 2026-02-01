@@ -3,10 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # change this env var when you want a full cold rebuild:
-        #   CACHEBUST=$(date +%s) docker-compose up --build -d
-        CACHEBUST: ${CACHEBUST:-}
     ports:
       - "8080:8080"
     environment:

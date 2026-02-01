@@ -116,6 +116,19 @@ router.delete("/:potId", requireUserAuth, async (req, res) => {
   }
 });
 
+// get latest measurement per type (user)
+router.get("/:potId/measurement/latest", requireUserAuth, async (req, res) => {
+  const pot = await dao.getPot(req.params.potId);
+  if (!pot) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+  const node = await dao.findNodeById(pot.node_id);
+  const user = (req as any).user;
+  if (!node || node.user_id !== user.id) return res.status(404).json({ error: "NotFound", message: "Pot not found" });
+
+  const data = await dao.getLatestMeasurements(req.params.potId);
+  if (data === null) return res.status(500).json({ error: "ReadFailed", message: "Could not list measurements" });
+  res.json(data);
+});
+
 // node-auth measurement create
 router.put("/:potId/measurement", requireNodeAuth, validateSchema(measurementSchema), async (req, res) => {
   const pot = await dao.getPot(req.params.potId);
