@@ -4,5 +4,5 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8080/api/V1
+      - VITE_API_URL=http://uuiotbe.cytadel.xyz:8080/api/V1
       - VITE_USE_MOCKS=false

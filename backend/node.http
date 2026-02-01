@@ -1,0 +1,153 @@
+# Node/Device Simulation - HTTP Calls
+# This file simulates an IoT node interacting with the backend API
+
+@host = localhost
+@port = 8080
+@base = http://{{host}}:{{port}}/api/V1
+
+# User ID to register the node under (get this from user profile or login)
+@userId = 16265240-7414-4fb1-a0ff-9a8e2a4700f3
+
+# Node credentials - fill after device registration (PUT /node)
+@nodeId = 92874a3e-71ca-46ef-a278-eb663da505db
+@nodeToken = 0e5b309f5565be202a263e7f46579627e9af66db5bd985573ae4124dbef95a7e
+@potId = 6e83f1ca-b76e-48ad-a66a-36cdc168e30e
+
+# ------------------------
+# Device Registration
+# ------------------------
+
+### 1. Register device (PUT /node)
+# Call this first - returns nodeId, token, and default potId
+# Copy the returned values into the variables above
+PUT {{base}}/node
+Content-Type: application/json
+
+{
+  "userId": "{{userId}}"
+}
+
+### 2a. Simple heartbeat (PUT /node/heartbeat) - node identifies via token only
+PUT {{base}}/node/heartbeat
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "timestamp": "2025-01-31T12:00:00Z",
+  "uptimeSec": 3600,
+  "rssi": -65
+}
+
+### 2b. Heartbeat with nodeId (POST /node/:nodeId/heartbeat)
+# Returns node config and list of pots - useful for device to sync state
+POST {{base}}/node/{{nodeId}}/heartbeat
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{}
+
+# ------------------------
+# Telemetry - Measurements
+# ------------------------
+
+### 3a. Submit moisture measurement
+PUT {{base}}/pot/{{potId}}/measurement
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "timestamp": "2025-01-31T12:00:00Z",
+  "value": 45.5,
+  "type": "moisture"
+}
+
+### 3b. Submit temperature measurement
+PUT {{base}}/pot/{{potId}}/measurement
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "timestamp": "2025-01-31T12:01:00Z",
+  "value": 22.3,
+  "type": "temperature"
+}
+
+### 3c. Submit humidity measurement
+PUT {{base}}/pot/{{potId}}/measurement
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "timestamp": "2025-01-31T12:02:00Z",
+  "value": 68.0,
+  "type": "humidity"
+}
+
+# ------------------------
+# Error Reporting
+# ------------------------
+
+### 4a. Report low severity error
+POST {{base}}/node/{{nodeId}}/error
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "code": "WIFI_RECONNECT",
+  "message": "WiFi connection lost and recovered",
+  "severity": "low",
+  "timestamp": "2025-01-31T11:55:00Z"
+}
+
+### 4b. Report medium severity error
+POST {{base}}/node/{{nodeId}}/error
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "code": "SENSOR_TIMEOUT",
+  "message": "Moisture sensor read timeout",
+  "severity": "medium",
+  "timestamp": "2025-01-31T11:58:00Z"
+}
+
+### 4c. Report high severity error
+POST {{base}}/node/{{nodeId}}/error
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "code": "SENSOR_FAIL",
+  "message": "Moisture sensor disconnected - check wiring",
+  "severity": "high",
+  "timestamp": "2025-01-31T12:00:00Z"
+}
+
+# ------------------------
+# Typical Device Boot Sequence
+# ------------------------
+# 1. On first boot (no stored credentials):
+#    - Call PUT /node with userId to register
+#    - Store returned nodeId, token, potId in flash/EEPROM
+#
+# 2. On normal boot (credentials stored):
+#    - Call POST /node/:nodeId/heartbeat to sync state
+#    - Get list of pots and their reporting intervals
+#
+# 3. Measurement loop:
+#    - Read sensors
+#    - Call PUT /pot/:potId/measurement for each reading
+#    - Sleep for reporting interval
+#
+# 4. On error:
+#    - Call POST /node/:nodeId/error with error details
+#    - Continue operation if possible
+
+# ------------------------
+# Notes
+# ------------------------
+# - Device registration (PUT /node) does not require authentication
+# - All other endpoints require node token: Authorization: Bearer <token>
+# - Timestamps should be ISO 8601 format (UTC recommended)
+# - Measurement values must be between 0 and 100
+# - Error severity: "low", "medium", or "high"

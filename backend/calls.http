@@ -1,0 +1,192 @@
+# Server / test data - edit as needed
+@host = uuiotbe.cytadel.xyz
+@port = 8080
+@base = http://{{host}}:{{port}}/api/V1
+
+# Test user values (change emails/password as needed)
+@username = testuser
+@userEmail = testuser+api2@example.test
+@userPassword = abeb53c10de10fe01ab4f47afb69caf4d3f2257bf732629001a9e784999646f8f1df105484ca39b28414ae2fa926031272109d9101083d594c675a2e843a361c
+# userPasswd is Pa$$w0rd123
+
+# Tokens - fill after login/register (or your client can set env vars)
+@userToken = 8e9282ea-19b6-4909-b151-03ba4761acf1
+
+
+@nodeId = 17ddea05-a5b0-4b26-9af7-85c60885713b
+@nodeToken = ca0e200a1e74dd6f83ef27cc7e7eb95f1604f6d0d05cc938a904aa0f9f712a05
+
+
+### TEST
+GET http://{{host}}:{{port}}/test
+
+### TEST
+GET {{base}}/test
+
+### Create user (PUT /user)
+PUT {{base}}/user
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### Login user (POST /user) -> response should contain token; paste it into @userToken
+POST {{base}}/user
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### Get current user (GET /user) - requires Authorization: Bearer {{userToken}}
+GET {{base}}/user
+Authorization: Bearer {{userToken}}
+
+### Patch user (PATCH /user) - update display/username
+PATCH {{base}}/user
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "username": "{{username}}-updated"
+}
+
+### Delete user (DELETE /user)
+DELETE {{base}}/user
+Authorization: Bearer {{userToken}}
+
+
+# ------------------------
+# Node (device) flows
+# ------------------------
+
+### Register device (PUT /node) -> returns nodeId and node token; paste token into @nodeToken
+PUT {{base}}/node
+Content-Type: application/json
+
+{}
+
+### Node heartbeat (POST /node/:nodeId/heartbeat) - uses node token
+POST {{base}}/node/{{nodeId}}/heartbeat
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{}
+
+### Node report error (POST /node/:nodeId/error) - uses node token
+POST {{base}}/node/{{nodeId}}/error
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "code": "SENSOR_FAIL",
+  "message": "Test error from manual call",
+  "severity": "low",
+  "timestamp": "2025-01-01T12:00:00Z"
+}
+
+### List node errors for user (GET /node/error) - user token
+GET {{base}}/node/error
+Authorization: Bearer {{userToken}}
+
+# ------------------------
+# User-managed node & pots
+# ------------------------
+
+### Create node for user (POST /node) - user token
+POST {{base}}/node
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "name": "My Garden Node",
+  "note": "Created from manual calls",
+  "status": "active",
+  "dataArchiving": "P30D"
+}
+
+### List user's nodes (GET /node)
+GET {{base}}/node
+Authorization: Bearer {{userToken}}
+
+### Get node details (GET /node/:nodeId)
+GET {{base}}/node/{{userNodeId}}
+Authorization: Bearer {{userToken}}
+
+### Patch node (PATCH /node/:nodeId)
+PATCH {{base}}/node/{{userNodeId}}
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "note": "Updated note via manual call"
+}
+
+### Delete node (DELETE /node/:nodeId)
+DELETE {{base}}/node/{{userNodeId}}
+Authorization: Bearer {{userToken}}
+
+
+# ------------------------
+# Pots & measurements
+# ------------------------
+
+### Create pot under node (POST /node/:nodeId/pot) - include reportingTime
+POST {{base}}/node/{{userNodeId}}/pot
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "name": "Front Porch Pot",
+  "note": "Manual test pot",
+  "status": "active",
+  "reportingTime": "PT15M"
+}
+
+### List pots under node (GET /node/:nodeId/pot)
+GET {{base}}/node/{{userNodeId}}/pot
+Authorization: Bearer {{userToken}}
+
+### Get pot (GET /pot/:potId)
+GET {{base}}/pot/{{potId}}
+Authorization: Bearer {{userToken}}
+
+### Patch pot (PATCH /pot/:potId) - can change reportingTime
+PATCH {{base}}/pot/{{potId}}
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "reportingTime": "PT30M",
+  "note": "Updated reporting interval"
+}
+
+### Delete pot (DELETE /pot/:potId)
+DELETE {{base}}/pot/{{potId}}
+Authorization: Bearer {{userToken}}
+
+### Add measurement (PUT /pot/:potId/measurement) - node token (device)
+PUT {{base}}/pot/{{potId}}/measurement
+Authorization: Bearer {{nodeToken}}
+Content-Type: application/json
+
+{
+  "timestamp": "2025-01-01T12:00:00Z",
+  "value": 55.2,
+  "type": "moisture"
+}
+
+### List measurements (GET /pot/:potId/measurement) - user token, optional time range query params
+GET {{base}}/pot/{{potId}}/measurement?timeStart=2024-01-01T00:00:00Z&timeEnd=2030-01-01T00:00:00Z
+Authorization: Bearer {{userToken}}
+
+
+# Notes:
+# - After calling login (/user POST) paste returned token string into the @userToken variable above.
+# - After calling device register (PUT /node) paste returned token into @nodeToken and nodeId into {{nodeId}} or set userNodeId/potId variables as needed.
+# - Replace {{userNodeId}}, {{potId}} and {{nodeId}} in the file with IDs returned by previous calls before invoking subsequent requests (or set them as environment variables in your HTTP client).
+# - The file is compatible with REST-client-style editors (VSCode REST Client) or any manual HTTP client; adjust variable syntax if your tool uses a different format.
